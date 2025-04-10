@@ -12,7 +12,7 @@ os.chdir(ROOT_DIR)
 import time
 import numpy as np
 from multiprocessing.managers import SharedMemoryManager
-from diffusion_policy.real_world.visionpro_shared_memory_v2 import VisionPro
+from diffusion_policy.real_world.visionpro_shared_memory import VisionPro
 
 
 if __name__ == '__main__':

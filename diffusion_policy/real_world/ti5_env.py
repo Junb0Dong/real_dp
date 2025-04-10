@@ -123,7 +123,7 @@ class RealEnv:
 
         # 相机初始化
         realsense = MultiRealsense(
-            serial_numbers=camera_serial_numbers, # 自动获取序列号
+            serial_numbers=camera_serial_numbers,
             shm_manager=shm_manager,
             resolution=video_capture_resolution,
             capture_fps=video_capture_fps,
@@ -133,7 +133,7 @@ class RealEnv:
             put_downsample=False,
             record_fps=recording_fps,
             enable_color=True,
-            enable_depth=False, # 不需要深度信息
+            enable_depth=False,
             enable_infrared=False,
             get_max_k=max_obs_buffer_size,
             transform=transform,
@@ -153,7 +153,7 @@ class RealEnv:
                 rgb_to_bgr=False
             )
 
-
+        # robot 初始化
         cube_diag = np.linalg.norm([1,1,1])
         j_init = np.array([0,-90,-90,-90,90,0]) / 180 * np.pi
         if not init_joints:
