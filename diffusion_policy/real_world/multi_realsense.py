@@ -34,6 +34,7 @@ class MultiRealsense:
         if serial_numbers is None:
             serial_numbers = SingleRealsense.get_connected_devices_serial()
         n_cameras = len(serial_numbers)
+        print(f"Number of connected cameras: {n_cameras}")
 
         advanced_mode_config = repeat_to_list(
             advanced_mode_config, n_cameras, dict)
@@ -195,7 +196,7 @@ class MultiRealsense:
         if isinstance(video_path, str):
             # directory
             video_dir = pathlib.Path(video_path)
-            assert video_dir.parent.is_dir()
+            assert video_dir.parent.is_dir() # 确保父目录存在
             video_dir.mkdir(parents=True, exist_ok=True)
             video_path = list()
             for i in range(self.n_cameras):

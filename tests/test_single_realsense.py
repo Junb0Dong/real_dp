@@ -16,7 +16,7 @@ def test():
     serials = SingleRealsense.get_connected_devices_serial()
     # import pdb; pdb.set_trace()
     serial = serials[0]
-    config = json.load(open('/home/junbo/diffusion_policy/diffusion_policy/real_world/realsense_config/415_high_accuracy_mode.json', 'r'))
+    config = json.load(open('/home/junbo/diffusion_policy/diffusion_policy/real_world/realsense_config/435_high_accuracy_mode.json', 'r'))
 
     def transform(data):
         color = data['color']
@@ -33,9 +33,9 @@ def test():
         with SingleRealsense(
             shm_manager=shm_manager,
             serial_number=serial,
-            resolution=(1280,720),
+            # resolution=(1280,720),
             # resolution=(960,540),
-            # resolution=(640,480),
+            resolution=(640,480),
             capture_fps=15,
             enable_color=True,
             # enable_depth=True,
@@ -47,7 +47,7 @@ def test():
             ) as realsense:
             cv2.setNumThreads(1) 
             realsense.set_exposure(exposure=150, gain=5)
-            intr = realsense.get_intrinsics()
+            intr = realsense.get_intrinsics() #  获取相机的内参
             print(intr)
 
 

@@ -15,8 +15,8 @@ from diffusion_policy.common.pose_trajectory_interpolator import PoseTrajectoryI
 
 class Command(enum.Enum):
     STOP = 0
-    SERVOL = 1
-    SCHEDULE_WAYPOINT = 2
+    SERVOL = 1  # 线性伺服运动
+    SCHEDULE_WAYPOINT = 2   # 调度路径点
 
 
 class RTDEInterpolationController(mp.Process):
@@ -51,8 +51,8 @@ class RTDEInterpolationController(mp.Process):
         gain: [100, 2000] proportional gain for following target position
         max_pos_speed: m/s
         max_rot_speed: rad/s
-        tcp_offset_pose: 6d pose
-        payload_mass: float
+        tcp_offset_pose: 6d pose    工具中心点位姿 前三个元素是xyz坐标，后三个元素是欧拉角
+        payload_mass: float 负载质量
         payload_cog: 3d position, center of gravity
         soft_real_time: enables round-robin scheduling and real-time priority
             requires running scripts/rtprio_setup.sh before hand.
@@ -109,10 +109,10 @@ class RTDEInterpolationController(mp.Process):
         # build ring buffer
         if receive_keys is None:
             receive_keys = [
-                'ActualTCPPose',
-                'ActualTCPSpeed',
-                'ActualQ',
-                'ActualQd',
+                'ActualTCPPose',    # 末端执行器的中心位姿
+                'ActualTCPSpeed',   # 末端执行器的速度
+                'ActualQ',  # 各关节的实际角度
+                'ActualQd', # 各关节的实际速度
 
                 'TargetTCPPose',
                 'TargetTCPSpeed',
@@ -123,7 +123,7 @@ class RTDEInterpolationController(mp.Process):
         example = dict()
         for key in receive_keys:
             example[key] = np.array(getattr(rtde_r, 'get'+key)())
-        example['robot_receive_timestamp'] = time.time()
+        example['robot_receive_timestamp'] = time.time()    # 添加时间戳
         ring_buffer = SharedMemoryRingBuffer.create_from_examples(
             shm_manager=shm_manager,
             examples=example,
@@ -220,8 +220,8 @@ class RTDEInterpolationController(mp.Process):
 
         # start rtde
         robot_ip = self.robot_ip
-        rtde_c = RTDEControlInterface(hostname=robot_ip)
-        rtde_r = RTDEReceiveInterface(hostname=robot_ip)
+        rtde_c = RTDEControlInterface(hostname=robot_ip)    # client send command to robot
+        rtde_r = RTDEReceiveInterface(hostname=robot_ip)    # client receive state from robot
 
         try:
             if self.verbose:

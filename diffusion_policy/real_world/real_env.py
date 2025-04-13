@@ -254,14 +254,14 @@ class RealEnv:
 
         # get data
         # 30 Hz, camera_receive_timestamp
-        k = math.ceil(self.n_obs_steps * (self.video_capture_fps / self.frequency))
-        self.last_realsense_data = self.realsense.get(k=k, out=self.last_realsense_data)
+        k = math.ceil(self.n_obs_steps * (self.video_capture_fps / self.frequency)) # math.ceil：向上取整
+        self.last_realsense_data = self.realsense.get(k=k, out=self.last_realsense_data) #  获取图像数据
 
         # 125 hz, robot_receive_timestamp
         last_robot_data = self.robot.get_all_state()
         # both have more than n_obs_steps data
 
-        # align camera obs timestamps 从robot的最后一个时间戳开始，向前推n_obs_steps个时间戳
+        # align camera obs timestamps 从robot的最后一个时间戳开始，向前推n_obs_steps个时间戳, align：对齐
         dt = 1 / self.frequency
         last_timestamp = np.max([x['timestamp'][-1] for x in self.last_realsense_data.values()])
         obs_align_timestamps = last_timestamp - (np.arange(self.n_obs_steps)[::-1] * dt)

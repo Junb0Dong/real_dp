@@ -13,8 +13,9 @@ from diffusion_policy.real_world.multi_realsense import MultiRealsense
 from diffusion_policy.real_world.video_recorder import VideoRecorder
 
 def test():
-    config = json.load(open('/home/cchi/dev/diffusion_policy/diffusion_policy/real_world/realsense_config/415_high_accuracy_mode.json', 'r'))
+    config = json.load(open('/home/junbo/diffusion_policy/diffusion_policy/real_world/realsense_config/435_high_accuracy_mode.json', 'r'))
 
+    # 图像缩放函数
     def transform(data):
         color = data['color']
         h,w,_ = color.shape
@@ -26,8 +27,8 @@ def test():
 
     from diffusion_policy.common.cv2_util import get_image_transform
     color_transform = get_image_transform(
-        input_res=(1280,720),
-        output_res=(640,480), 
+        input_res=(640,480),
+        output_res=(320,240), 
         bgr_to_rgb=False)
     def transform(data):
         data['color'] = color_transform(data['color'])
@@ -39,10 +40,11 @@ def test():
         codec='h264',
         thread_type='FRAME'
     )
-
+    
     with MultiRealsense(
-            resolution=(1280,720),
-            capture_fps=30,
+            # resolution=(1280,720),
+            resolution=(640,480),
+            capture_fps=15,
             record_fps=15,
             enable_color=True,
             # advanced_mode_config=config,
@@ -51,11 +53,13 @@ def test():
             # video_recorder=video_recorder,
             verbose=True
         ) as realsense:
+        print("the num of cameras: ", realsense.n_cameras)
         realsense.set_exposure(exposure=150, gain=5)
         intr = realsense.get_intrinsics()
         print(intr)
+        
 
-        video_path = 'data_local/test'
+        video_path = 'data/realsense'
         rec_start_time = time.time() + 1
         realsense.start_recording(video_path, start_time=rec_start_time)
         realsense.restart_put(rec_start_time)
