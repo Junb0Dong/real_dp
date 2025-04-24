@@ -135,7 +135,7 @@ class RealEnv:
             enable_color=True,
             enable_depth=False, # 不需要深度信息
             enable_infrared=False,
-            get_max_k=max_obs_buffer_size,
+            get_max_k=max_obs_buffer_size,5
             transform=transform,
             vis_transform=vis_transform,
             recording_transform=recording_transfrom,

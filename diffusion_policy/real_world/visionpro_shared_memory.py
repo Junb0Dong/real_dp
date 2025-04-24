@@ -101,8 +101,8 @@ class VisionPro(mp.Process):
                 try:
                     # Get the latest data from VisionPro streamer
                     r = self.visionpro_streamer.latest
-                    print("r is :", r['left_wrist'], "\n")
-                    print("frequency is :", self.visionpro_streamer.get_real_frequency())
+                    # print("r is :", r['left_wrist'], "\n")
+                    # print("frequency is :", self.visionpro_streamer.get_real_frequency())
                     if r is None:
                         print("Warning: No data received yet from   VisionProStreamer")
                         continue
