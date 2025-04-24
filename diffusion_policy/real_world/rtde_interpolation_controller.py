@@ -6,7 +6,7 @@ from multiprocessing.managers import SharedMemoryManager
 import scipy.interpolate as si
 import scipy.spatial.transform as st
 import numpy as np
-from rtde_control import RTDEControlInterface
+from rtde_control import RTDEControlInterface   # 这块是colse source的，只提供了python接口
 from rtde_receive import RTDEReceiveInterface
 from diffusion_policy.shared_memory.shared_memory_queue import (
     SharedMemoryQueue, Empty)
@@ -96,7 +96,7 @@ class RTDEInterpolationController(mp.Process):
         # build input queue
         example = {
             'cmd': Command.SERVOL.value,
-            'target_pose': np.zeros((6,), dtype=np.float64),
+            'target_pose': np.zeros((6,), dtype=np.float64), # 改成ti5,只需要`target_pose`? 这看是否在`demo_real_robot.py`中使用了duration和target_time
             'duration': 0.0,
             'target_time': 0.0
         }
@@ -204,7 +204,7 @@ class RTDEInterpolationController(mp.Process):
     # ========= receive APIs =============
     def get_state(self, k=None, out=None):
         if k is None:
-            return self.ring_buffer.get(out=out)
+            return self.ring_buffer.get(out=out)    # 得有put才会有get
         else:
             return self.ring_buffer.get_last_k(k=k,out=out)
     
@@ -224,12 +224,12 @@ class RTDEInterpolationController(mp.Process):
         rtde_r = RTDEReceiveInterface(hostname=robot_ip)    # client receive state from robot
 
         try:
-            if self.verbose:
+            if self.verbose:     #  如果verbose为True，则打印连接到机器人的信息
                 print(f"[RTDEPositionalController] Connect to robot: {robot_ip}")
 
             # set parameters
             if self.tcp_offset_pose is not None:
-                rtde_c.setTcp(self.tcp_offset_pose)
+                rtde_c.setTcp(self.tcp_offset_pose)     # 工具中心点位姿
             if self.payload_mass is not None:
                 if self.payload_cog is not None:
                     assert rtde_c.setPayload(self.payload_mass, self.payload_cog)
@@ -262,9 +262,10 @@ class RTDEInterpolationController(mp.Process):
                 # diff = t_now - pose_interp.times[-1]
                 # if diff > 0:
                 #     print('extrapolate', diff)
-                pose_command = pose_interp(t_now)
+                pose_command = pose_interp(t_now)   # 计算当前时间的目标位姿，使用插值法
                 vel = 0.5
                 acc = 0.5
+                # 将计算出的目标位姿传递给机器人
                 assert rtde_c.servoL(pose_command, 
                     vel, acc, # dummy, not used by ur5
                     dt, 
@@ -274,9 +275,9 @@ class RTDEInterpolationController(mp.Process):
                 # update robot state
                 state = dict()
                 for key in self.receive_keys:
-                    state[key] = np.array(getattr(rtde_r, 'get'+key)())
+                    state[key] = np.array(getattr(rtde_r, 'get'+key)()) # 获取robot state
                 state['robot_receive_timestamp'] = time.time()
-                self.ring_buffer.put(state)
+                self.ring_buffer.put(state) # 存储到共享内存中
 
                 # fetch command from queue
                 try:
