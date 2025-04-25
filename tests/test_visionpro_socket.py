@@ -69,11 +69,8 @@ if __name__ == '__main__':
                 rotation_matrix = np.dot(np.dot(rotation_matrix, np.linalg.inv(base_rotation_matrix)), bias_rotation_matrix)  # 相对旋转矩阵
                 r = R.from_matrix(rotation_matrix)  # 将旋转矩阵转换为rpy (roll, pitch, yaw)
                 rpy = r.as_euler('xyz', degrees=False)  # 使用xyz顺序，角度单位为度
-
-                pose = {
-                    "position": xyz.tolist(),
-                    "orientation": rpy.tolist()
-                }
+ 
+                pose = xyz.tolist() + rpy.tolist()
                 
                 # print("Pose (xyz, rpy):", pose)
                 sender.send_target_pose(pose)
