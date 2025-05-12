@@ -19,7 +19,7 @@ import numpy as np
 from avp_stream import VisionProStreamer
 import time
 
-avp_ip = "10.15.202.91"
+avp_ip = "10.15.36.10"
 s = VisionProStreamer(ip=avp_ip, record=True, frequency=10)
 
 data_queue = queue.Queue()

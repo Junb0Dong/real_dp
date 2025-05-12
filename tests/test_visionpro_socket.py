@@ -26,16 +26,20 @@ from scipy.spatial.transform import Rotation as R
 
 if __name__ == '__main__':
     # 机器人 IP 和端口
-    HOST = "10.15.127.226"  # 替换为实际机器人 IP
+    HOST = "10.20.55.106"  # 替换为实际机器人 IP
     # HOST = "127.0.0.1"  # 本地测试
-    PORT = 8990
+    PORT = 9000
     sender = RobotController(HOST, PORT)# 创建发送类实例
     receiver = RobotReceiver(sender.get_socket())# 创建接收类实例，传递共享 socket
 
-    vp_ip="10.15.202.91"    # visionpro 的 ip
+    vp_ip="192.168.31.186"    # visionpro 的 ip
 
-    bias_xyz = np.array([2.79187e-5, -0.49621, 0.362338])  # xyz偏置
-    q = [0.148742, -5.05746e-5, 2.28309e-5, 0.988876]   # 四元数偏置，标量最后顺序xyzw
+    # bias_xyz = np.array([2.79187e-5, -0.49621, 0.362338])  # xyz偏置
+    # q = [0.148742, -5.05746e-5, 2.28309e-5, 0.988876]   # 四元数偏置，标量最后顺序xyzw
+
+    bias_xyz = np.array([171.389, -364.496, 420.007])  # xyz偏置
+    bisa_rpy = [-0.0878895, 1.4993, 0.631517]   # 四元数偏置，标量最后顺序xyzw
+
 
     print("Running VisionPro test...")
     with SharedMemoryManager() as shm_manager:
@@ -48,30 +52,46 @@ if __name__ == '__main__':
             
             # 设置base pose
             basepose = vp.get_left_wrist_state()
-            base_xyz = basepose[:3, 3]
+            base_xyz = basepose[:3, 3]*1000
             base_rotation_matrix = basepose[:3, :3]
 
 
             # 将四元数转换为旋转矩阵
-            bias_rotation_matrix = R.from_quat(q).as_matrix()
+            # bias_rotation_matrix = R.from_quat(q).as_matrix()
+
+            # 将rpy转换为旋转矩阵
+            bias_rotation_matrix = R.from_euler('xyz', bisa_rpy, degrees=False).as_matrix()
 
             while True:
+                print("111111111111111111111111111111111")
                 start_time = time.time()
-                
                 transform_matrix = vp.get_left_wrist_state()  # 获取左手腕状态
-
-                xyz = transform_matrix[:3, 3]  # 提取平移部分 (x, y, z)
+                print("transform_matrix:", transform_matrix)
+                xyz = transform_matrix[:3, 3]*1000  # 提取平移部分 (x, y, z)
                 # 计算相对位置
                 xyz = xyz - base_xyz  + bias_xyz # 相对位置
-                
+                print("相对位置：", xyz)
                 rotation_matrix = transform_matrix[:3, :3]  # 提取旋转矩阵部分
+                print("rotation matrix:", rotation_matrix)
                 # 计算相对旋转矩阵
-                rotation_matrix = np.dot(np.dot(rotation_matrix, np.linalg.inv(base_rotation_matrix)), bias_rotation_matrix)  # 相对旋转矩阵
+                rotation_matrix = np.dot(rotation_matrix, np.linalg.inv(base_rotation_matrix))  # 相对旋转矩阵
+                print("invinv      rotation matrix:", rotation_matrix)
+                print("bias_rotation_matrix:", bias_rotation_matrix)
+                rotation_matrix = np.dot(rotation_matrix, bias_rotation_matrix)
+                print("relative rotation matrix:", rotation_matrix)
                 r = R.from_matrix(rotation_matrix)  # 将旋转矩阵转换为rpy (roll, pitch, yaw)
+                print("rpy:", r)
                 rpy = r.as_euler('xyz', degrees=False)  # 使用xyz顺序，角度单位为度
- 
+                print("相对旋转：", rpy)
+                print("22222222222222222222222222222222222222")
+                # pose = {
+                #     "position": xyz.tolist(),
+                #     "orientation": rpy.tolist()
+                # }
                 pose = xyz.tolist() + rpy.tolist()
-                
+
+                print("=================prepare pose======================")
+                print("new pose is : ", pose)
                 # print("Pose (xyz, rpy):", pose)
                 sender.send_target_pose(pose)
                 # 接收响应
