@@ -32,6 +32,7 @@ class VisionPro(mp.Process):
         # Example data structure for ring buffer
         example = {
             'left_wrist': np.zeros((4, 4), dtype=dtype),  # 4x4 matrix for left wrist pose
+            'right_wrist': np.zeros((4, 4), dtype=dtype),  # 4x4 matrix for right wrist pose
             'receive_timestamp': time.time()
         }
         self.ring_buffer = SharedMemoryRingBuffer.create_from_examples(
@@ -57,6 +58,14 @@ class VisionPro(mp.Process):
         state = self.ring_buffer.get()
         # print(f"Retrieved state from ring_buffer: {state['left_wrist']}")
         return np.array(state['left_wrist'], dtype=self.dtype)
+    
+    def get_right_wrist_state(self):
+        """
+        Retrieve the latest left wrist state from the ring buffer.
+        """
+        state = self.ring_buffer.get()
+        # print(f"Retrieved state from ring_buffer: {state['left_wrist']}")
+        return np.array(state['right_wrist'], dtype=self.dtype)
 
     # ======= Start/Stop APIs ==========
 
@@ -90,12 +99,14 @@ class VisionPro(mp.Process):
             self.visionpro_streamer = VisionProStreamer(ip=self.avp_ip, record=True, frequency=self.frequency)
             # Initial state to allow immediate client reading
             left_wrist = np.zeros((4, 4), dtype=self.dtype)
+            right_wrist = np.zeros((4, 4), dtype=self.dtype)
             self.ring_buffer.put({
                 'left_wrist': left_wrist,
+                'right_wrist': right_wrist,
                 'receive_timestamp': time.time()
             })
             self.ready_event.set()
-            # s = VisionProStreamer(ip = "10.15.202.91", record = True)
+
             while not self.stop_event.is_set():
                 receive_timestamp = time.time()
                 try:
@@ -107,8 +118,10 @@ class VisionPro(mp.Process):
                         print("Warning: No data received yet from   VisionProStreamer")
                         continue
                     left_wrist = r['left_wrist']
+                    right_wrist = r['right_wrist']
                     state = {
                         'left_wrist': np.array(left_wrist, dtype=self.dtype),
+                        'right_wrist': np.array(right_wrist, dtype=self.dtype),
                         'receive_timestamp': receive_timestamp
                     }
 
