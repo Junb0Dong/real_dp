@@ -37,8 +37,13 @@ if __name__ == '__main__':
     # bias_xyz = np.array([2.79187e-5, -0.49621, 0.362338])  # xyz偏置
     # q = [0.148742, -5.05746e-5, 2.28309e-5, 0.988876]   # 四元数偏置，标量最后顺序xyzw
 
-    bias_xyz = np.array([171.389, -364.496, 420.007])  # xyz偏置
-    bisa_rpy = [-0.0878895, 1.4993, 0.631517]   # 四元数偏置，标量最后顺序xyzw
+    # #Avoid singularities
+    # bias_xyz = np.array([171.389, -364.496, 420.007])  # xyz偏置
+    # bisa_rpy = [-0.0878895, 1.4993, 0.631517]   # 四元数偏置，标量最后顺序xyzw
+    # #push T 
+    bias_xyz = np.array([315.765, -388.611, 168.189])  # xyz偏置
+    bisa_rpy = [-2.82106, -3.1295, 0.00854301]   # 四元数偏置，标量最后顺序xyzw
+
 
 
     print("Running VisionPro test...")
