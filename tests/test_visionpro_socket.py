@@ -34,18 +34,9 @@ if __name__ == '__main__':
 
     vp_ip="10.12.174.92"    # visionpro 的 ip
 
-    # bias_xyz = np.array([2.79187e-5, -0.49621, 0.362338])  # xyz偏置
-    # q = [0.148742, -5.05746e-5, 2.28309e-5, 0.988876]   # 四元数偏置，标量最后顺序xyzw
-
-    # #Avoid singularities
-    # bias_xyz = np.array([171.389, -364.496, 420.007])  # xyz偏置
-    # bisa_rpy = [-0.0878895, 1.4993, 0.631517]   # 四元数偏置，标量最后顺序xyzw
-    # # #push T 
-    # bias_xyz = np.array([315.765, -388.611, 168.189])  # xyz偏置
-    # bisa_rpy = [-2.82106, -3.1295, 0.00854301]   # 四元数偏置，标量最后顺序xyzw
-    # new sdk test
-    bias_xyz = np.array([78.0628, -366.38, 240.631])  # xyz偏置
-    bisa_rpy = [0.209908, -0.000148732, 1.99512]   # 四元数偏置，标量最后顺序xyzw
+    # bias pose
+    bias_xyz = np.array([106, -497.39, 304.7])  # xyz偏置
+    bisa_rpy = [0.41, 0, 0.204]  # rpy偏置，单位为弧度
 
     vp_pose_scale = 1000  # 视觉数据缩放比例
 
@@ -74,10 +65,10 @@ if __name__ == '__main__':
                 # print("111111111111111111111111111111111")
                 start_time = time.time()
                 transform_matrix = vp.get_right_wrist_state()  # 获取左手腕状态
-                # print("transform_matrix:", transform_matrix)
-                xyz = transform_matrix[:3, 3]*vp_pose_scale  # 提取平移部分 (x, y, z)
+                print("transform_matrix:", transform_matrix)
+                t_xyz = transform_matrix[:3, 3]*vp_pose_scale  # 提取平移部分 (x, y, z)
                 # 计算相对位置
-                xyz = xyz - base_xyz  + bias_xyz # 相对位置
+                xyz = t_xyz - base_xyz  + bias_xyz # 相对位置
                 # print("相对位置：", xyz)
                 rotation_matrix = transform_matrix[:3, :3]  # 提取旋转矩阵部分
                 # print("rotation matrix:", rotation_matrix)
