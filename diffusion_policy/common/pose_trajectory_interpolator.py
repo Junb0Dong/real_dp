@@ -4,6 +4,7 @@ import numpy as np
 import scipy.interpolate as si
 import scipy.spatial.transform as st
 
+# 计算两个旋转姿态的距离（弧度）
 def rotation_distance(a: st.Rotation, b: st.Rotation) -> float:
     return (b * a.inv()).magnitude()
 
@@ -17,6 +18,13 @@ def pose_distance(start_pose, end_pose):
     pos_dist = np.linalg.norm(end_pos - start_pos)
     rot_dist = rotation_distance(start_rot, end_rot)
     return pos_dist, rot_dist
+
+"""
+1. 平滑插值：通过线性插值（位置）和 Slerp（姿态）生成平滑轨迹，避免机器人运动卡顿；
+2. 可行性保证：通过 drive_to_waypoint 和 schedule_waypoint 确保轨迹不超过最大速度（不会 “要求机器人做不到的运动”）；
+3. 动态调整：支持修剪轨迹、插入新航点，适应实时调整需求；
+4. 通用性：同时支持静态位姿（单航点）和动态轨迹（多航点）。
+"""
 
 class PoseTrajectoryInterpolator:
     def __init__(self, times: np.ndarray, poses: np.ndarray):
@@ -40,8 +48,8 @@ class PoseTrajectoryInterpolator:
             rot = st.Rotation.from_rotvec(poses[:,3:])
 
             self.pos_interp = si.interp1d(times, pos, 
-                axis=0, assume_sorted=True)
-            self.rot_interp = st.Slerp(times, rot)
+                axis=0, assume_sorted=True) # 位置插值
+            self.rot_interp = st.Slerp(times, rot)  # 旋转插值
     
     @property
     def times(self) -> np.ndarray:
@@ -61,9 +69,8 @@ class PoseTrajectoryInterpolator:
             poses[:,3:] = self.rot_interp(self.times).as_rotvec()
             return poses
 
-    def trim(self, 
-            start_t: float, end_t: float
-            ) -> "PoseTrajectoryInterpolator":
+    # 截取轨迹的一部分
+    def trim(self, start_t: float, end_t: float) -> "PoseTrajectoryInterpolator":
         assert start_t <= end_t
         times = self.times
         should_keep = (start_t < times) & (times < end_t)
@@ -75,31 +82,27 @@ class PoseTrajectoryInterpolator:
         all_poses = self(all_times)
         return PoseTrajectoryInterpolator(times=all_times, poses=all_poses)
     
-    def drive_to_waypoint(self, 
-            pose, time, curr_time,
-            max_pos_speed=np.inf, 
-            max_rot_speed=np.inf
-        ) -> "PoseTrajectoryInterpolator":
+    def drive_to_waypoint(self, pose, time, curr_time, max_pos_speed=np.inf, max_rot_speed=np.inf) -> "PoseTrajectoryInterpolator":
         assert(max_pos_speed > 0)
         assert(max_rot_speed > 0)
         time = max(time, curr_time)
         
-        curr_pose = self(curr_time)
-        pos_dist, rot_dist = pose_distance(curr_pose, pose)
-        pos_min_duration = pos_dist / max_pos_speed
-        rot_min_duration = rot_dist / max_rot_speed
-        duration = time - curr_time
-        duration = max(duration, max(pos_min_duration, rot_min_duration))
+        curr_pose = self(curr_time) # 获取当前时刻的位姿
+        pos_dist, rot_dist = pose_distance(curr_pose, pose) # 计算两个位姿之间的距离
+        pos_min_duration = pos_dist / max_pos_speed # 平移所需最少时间
+        rot_min_duration = rot_dist / max_rot_speed # 旋转所需最少时间
+        duration = time - curr_time # 计算当前时刻到目标时刻的时间差
+        duration = max(duration, max(pos_min_duration, rot_min_duration))   # 必须同时满足平移和旋转的时间要求
         assert duration >= 0
-        last_waypoint_time = curr_time + duration
+        last_waypoint_time = curr_time + duration   # 最终到达时间
 
         # insert new pose
-        trimmed_interp = self.trim(curr_time, curr_time)
-        times = np.append(trimmed_interp.times, [last_waypoint_time], axis=0)
+        trimmed_interp = self.trim(curr_time, curr_time)    # 截取当前时间轨迹，过滤掉所有无关历史数据，只保留当前状态
+        times = np.append(trimmed_interp.times, [last_waypoint_time], axis=0)   # 从curr_time到last_waypoint_time
         poses = np.append(trimmed_interp.poses, [pose], axis=0)
 
         # create new interpolator
-        final_interp = PoseTrajectoryInterpolator(times, poses)
+        final_interp = PoseTrajectoryInterpolator(times, poses) # 返回新的插值器（新轨迹）
         return final_interp
 
     def schedule_waypoint(self,
@@ -185,6 +188,7 @@ class PoseTrajectoryInterpolator:
         return final_interp
 
 
+    # 给定任意时间 t，返回该时刻的位姿
     def __call__(self, t: Union[numbers.Number, np.ndarray]) -> np.ndarray:
         is_single = False
         if isinstance(t, numbers.Number):

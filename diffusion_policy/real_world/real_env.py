@@ -32,35 +32,35 @@ DEFAULT_OBS_KEY_MAP = {
 class RealEnv:
     def __init__(self, 
             # required params
-            output_dir,
-            robot_ip,
+            output_dir, # 输出目录，在demo_real_robot.py中args来指定
+            robot_ip,   # robot ip->UR5
             # env params
-            frequency=10,
-            n_obs_steps=2,
+            frequency=10,   # 控制频率
+            n_obs_steps=2,  # 观测步骤
             # obs
-            obs_image_resolution=(640,480),
-            max_obs_buffer_size=30,
+            obs_image_resolution=(640,480), # image分辨率
+            max_obs_buffer_size=30, # 最大观测缓冲区大小
             camera_serial_numbers=None,
-            obs_key_map=DEFAULT_OBS_KEY_MAP,
+            obs_key_map=DEFAULT_OBS_KEY_MAP,    # obs观测字典
             obs_float32=False,
             # action
-            max_pos_speed=0.25,
-            max_rot_speed=0.6,
+            max_pos_speed=0.25, # robot最大的position运动速度
+            max_rot_speed=0.6,  # robot最大的rotation运动速度
             # robot
-            tcp_offset=0.13,
-            init_joints=False,
+            tcp_offset=0.13,    # 机器人末端执行器的位置和姿态偏移
+            init_joints=False,  # joint 初始化
             # video capture params
-            video_capture_fps=30,
-            video_capture_resolution=(1280,720),
+            video_capture_fps=30,   # video的fps
+            video_capture_resolution=(1280,720),    # NOTE video的分辨率，为什么比上面大？video_capture_resolution作为输入分辨率，obs_image_resolution作为输出分辨率
             # saving params
             record_raw_video=True,
-            thread_per_video=2,
-            video_crf=21,
+            thread_per_video=2, # 每个视频流分配的线程数（用于编码/处理）
+            video_crf=21,   # 视频压缩率因子（CRF值，范围0-51，越低质量越高）
             # vis params
-            enable_multi_cam_vis=True,
-            multi_cam_vis_resolution=(1280,720),
+            enable_multi_cam_vis=True,  # 是否启用多摄像头画面拼接显示
+            multi_cam_vis_resolution=(1280,720),    # 多摄像头拼接画面的分辨率（宽×高）
             # shared memory
-            shm_manager=None
+            shm_manager=None    # 共享内存管理器，一个用到相机上，一个用到robot上
             ):
         assert frequency <= video_capture_fps   # frequency must be less than or equal to video_capture_fps
         output_dir = pathlib.Path(output_dir)
@@ -143,7 +143,7 @@ class RealEnv:
             verbose=False
             )
         
-        # 相机可视化
+        # 相机可视化，独立进程
         multi_cam_vis = None
         if enable_multi_cam_vis:
             multi_cam_vis = MultiCameraVisualizer(
@@ -159,7 +159,7 @@ class RealEnv:
         if not init_joints:
             j_init = None
 
-        # 创建RTDE对象用于控制robot
+        # 创建RTDE对象用于控制robot，在独立进程中运行，并通过共享内存 (SharedMemoryManager) 与其他进程通信
         robot = RTDEInterpolationController(
             shm_manager=shm_manager,
             robot_ip=robot_ip,
@@ -169,10 +169,10 @@ class RealEnv:
             max_pos_speed=max_pos_speed*cube_diag, # 防止机器人超出工作空间
             max_rot_speed=max_rot_speed*cube_diag,
             launch_timeout=3,
-            tcp_offset_pose=[0,0,tcp_offset,0,0,0], # 机器人末端执行器的位置和姿态偏移
-            payload_mass=None,
+            tcp_offset_pose=[0,0,tcp_offset,0,0,0], # 工具中心点位姿 前三个元素是xyz坐标，后三个元素是欧拉角
+            payload_mass=None,  # 负载
             payload_cog=None,
-            joints_init=j_init,
+            joints_init=j_init, # 关节初始位置
             joints_init_speed=1.05,
             soft_real_time=False,
             verbose=False,
@@ -255,23 +255,27 @@ class RealEnv:
         # get data
         # 30 Hz, camera_receive_timestamp
         k = math.ceil(self.n_obs_steps * (self.video_capture_fps / self.frequency)) # math.ceil：向上取整
-        self.last_realsense_data = self.realsense.get(k=k, out=self.last_realsense_data) #  获取图像数据
+        self.last_realsense_data = self.realsense.get(k=k, out=self.last_realsense_data) # 获取k个数据
 
         # 125 hz, robot_receive_timestamp
-        last_robot_data = self.robot.get_all_state()
+        last_robot_data = self.robot.get_all_state()    # 从共享内存中获取robot状态
         # both have more than n_obs_steps data
 
         # align camera obs timestamps 从robot的最后一个时间戳开始，向前推n_obs_steps个时间戳, align：对齐
         dt = 1 / self.frequency
-        last_timestamp = np.max([x['timestamp'][-1] for x in self.last_realsense_data.values()])
-        obs_align_timestamps = last_timestamp - (np.arange(self.n_obs_steps)[::-1] * dt)
+        last_timestamp = np.max([x['timestamp'][-1] for x in self.last_realsense_data.values()])    # 获取所有摄像头最新时间戳中的最大值
+        obs_align_timestamps = last_timestamp - (np.arange(self.n_obs_steps)[::-1] * dt)    # 生成一组倒退对齐的时间戳序列
+        # 结果示例，[::-1]：反转数组 → [n_obs_steps-1, ..., 2, 1, 0]
+        # [10.0 - 2*0.1,   → 9.8
+        # 10.0 - 1*0.1,   → 9.9
+        # 10.0 - 0*0.1]   → 10.0
 
         camera_obs = dict()
         for camera_idx, value in self.last_realsense_data.items():
             this_timestamps = value['timestamp']
             this_idxs = list()
             for t in obs_align_timestamps:
-                is_before_idxs = np.nonzero(this_timestamps < t)[0]
+                is_before_idxs = np.nonzero(this_timestamps < t)[0] # 找到当前摄像头所有早于对齐时间戳t的帧索引
                 this_idx = 0
                 if len(is_before_idxs) > 0:
                     this_idx = is_before_idxs[-1]
@@ -312,6 +316,7 @@ class RealEnv:
         obs_data['timestamp'] = obs_align_timestamps
         return obs_data
     
+    # 执行新的action并保存到共享内存中
     def exec_actions(self, 
             actions: np.ndarray, 
             timestamps: np.ndarray, 

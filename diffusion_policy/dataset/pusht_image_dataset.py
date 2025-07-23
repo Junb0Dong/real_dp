@@ -33,40 +33,47 @@ sample_data = dataset[0]  # 获取索引为 0 的样本数据
 '''
 class PushTImageDataset(BaseImageDataset):
     def __init__(self,
-            zarr_path, 
-            horizon=1,
-            pad_before=0,
-            pad_after=0,
-            seed=42,
-            val_ratio=0.0,
-            max_train_episodes=None
+            zarr_path,  # zarr 文件路径
+            horizon=1,  # 采样序列长度
+            pad_before=0,   # 序列开始前填充的帧数
+            pad_after=0,    # 序列结束后填充的帧数
+            seed=42,    # 随机种子
+            val_ratio=0.0,  # 验证集比例
+            max_train_episodes=None # 最大训练集集数，如果为 None 则不进行下采样
             ):
+        """
+        加载zarr数据，划分训练集和验证集，并创建序列采样器。
+        """
         
         super().__init__()
         self.replay_buffer = ReplayBuffer.copy_from_path(
-            zarr_path, keys=['img', 'state', 'action'])
+            zarr_path, keys=['img', 'state', 'action']) # 加载image和state-action pair数据
         val_mask = get_val_mask(
             n_episodes=self.replay_buffer.n_episodes, 
             val_ratio=val_ratio,
-            seed=seed)
+            seed=seed)  # 验证集掩码
         train_mask = ~val_mask
         train_mask = downsample_mask(
             mask=train_mask, 
             max_n=max_train_episodes, 
-            seed=seed)
+            seed=seed)  # 对训练集进行下采样
 
         self.sampler = SequenceSampler(
             replay_buffer=self.replay_buffer, 
             sequence_length=horizon,
             pad_before=pad_before, 
             pad_after=pad_after,
-            episode_mask=train_mask)
+            episode_mask=train_mask)    # 创建一个序列采样器，用于从回放缓冲区中采样序列数据
         self.train_mask = train_mask
         self.horizon = horizon
         self.pad_before = pad_before
         self.pad_after = pad_after
 
     def get_validation_dataset(self):
+        """
+        创建验证集数据集，使用与训练集相同的采样器，但使用验证集掩码。
+        返回一个新的 PushTImageDataset 实例，包含验证集数据。
+        """
         val_set = copy.copy(self)
         val_set.sampler = SequenceSampler(
             replay_buffer=self.replay_buffer, 
@@ -74,26 +81,39 @@ class PushTImageDataset(BaseImageDataset):
             pad_before=self.pad_before, 
             pad_after=self.pad_after,
             episode_mask=~self.train_mask
-            )
+            )   # 创建一个验证集采样器
         val_set.train_mask = ~self.train_mask
         return val_set
 
     def get_normalizer(self, mode='limits', **kwargs):
+        """
+        为state-action pair数据和图像数据创建一个归一化器。
+        参数 mode 指定归一化的模式，kwargs 可用于传递其他参数。
+        返回一个 LinearNormalizer 实例，包含归一化器和图像数据的归一化器。
+        """
         data = {
             'action': self.replay_buffer['action'],
             'agent_pos': self.replay_buffer['state'][...,:2]
-        }
-        normalizer = LinearNormalizer()
-        normalizer.fit(data=data, last_n_dims=1, mode=mode, **kwargs)
-        normalizer['image'] = get_image_range_normalizer()
+        }   # state-action pair数据
+        normalizer = LinearNormalizer() # 创建一个线性归一化器
+        normalizer.fit(data=data, last_n_dims=1, mode=mode, **kwargs)   # 拟合归一化器，针对action和agent_pos数据
+        normalizer['image'] = get_image_range_normalizer()  # 为图像数据添加归一化器
         return normalizer
 
     def __len__(self) -> int:
+        """
+        返回采样器的长度，即数据集中可采样的序列数量。
+        """
         return len(self.sampler)
 
     def _sample_to_data(self, sample):
+        """
+        将采样得到的数据转换为标准的数据格式。
+        参数：
+        sample：一个字典，包含采样得到的图像、状态和动作数据。
+        """
         agent_pos = sample['state'][:,:2].astype(np.float32) # (agent_posx2, block_posex3)
-        image = np.moveaxis(sample['img'],-1,1)/255
+        image = np.moveaxis(sample['img'],-1,1)/255 # 图像数据的通道维度移动到第二维，并将像素值归一化到 [0, 1] 范围
 
         data = {
             'obs': {
@@ -101,13 +121,16 @@ class PushTImageDataset(BaseImageDataset):
                 'agent_pos': agent_pos, # T, 2
             },
             'action': sample['action'].astype(np.float32) # T, 2
-        }
+        }   # data字典，包含观测数据和动作数据
         return data
     
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
-        sample = self.sampler.sample_sequence(idx)
-        data = self._sample_to_data(sample)
-        torch_data = dict_apply(data, torch.from_numpy)
+        """
+        获取指定索引的样本数据，并将其转换为 PyTorch 张量。
+        """
+        sample = self.sampler.sample_sequence(idx)  # 从采样器中获取样本数据
+        data = self._sample_to_data(sample) # 将样本数据转换为标准格式
+        torch_data = dict_apply(data, torch.from_numpy) # 将数据转换为 PyTorch 张量
         return torch_data
 
 

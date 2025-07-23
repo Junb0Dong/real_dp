@@ -46,7 +46,7 @@ class RTDEInterpolationController(mp.Process):
             get_max_k=128,
             ):
         """
-        frequency: CB2=125, UR3e=500
+         : CB2=125, UR3e=500
         lookahead_time: [0.03, 0.2]s smoothens the trajectory with this lookahead time
         gain: [100, 2000] proportional gain for following target position
         max_pos_speed: m/s
@@ -56,7 +56,6 @@ class RTDEInterpolationController(mp.Process):
         payload_cog: 3d position, center of gravity
         soft_real_time: enables round-robin scheduling and real-time priority
             requires running scripts/rtprio_setup.sh before hand.
-
         """
         # verify
         assert 0 < frequency <= 500
@@ -106,7 +105,7 @@ class RTDEInterpolationController(mp.Process):
             buffer_size=256
         )
 
-        # build ring buffer
+        # build ring buffer：环形缓冲区
         if receive_keys is None:
             receive_keys = [
                 'ActualTCPPose',    # 末端执行器的中心位姿
@@ -122,7 +121,7 @@ class RTDEInterpolationController(mp.Process):
         rtde_r = RTDEReceiveInterface(hostname=robot_ip)
         example = dict()
         for key in receive_keys:
-            example[key] = np.array(getattr(rtde_r, 'get'+key)())
+            example[key] = np.array(getattr(rtde_r, 'get'+key)())   # 配合ur_rtde的API
         example['robot_receive_timestamp'] = time.time()    # 添加时间戳
         ring_buffer = SharedMemoryRingBuffer.create_from_examples(
             shm_manager=shm_manager,
@@ -238,7 +237,7 @@ class RTDEInterpolationController(mp.Process):
             
             # init pose
             if self.joints_init is not None:
-                assert rtde_c.moveJ(self.joints_init, self.joints_init_speed, 1.4)
+                assert rtde_c.moveJ(self.joints_init, self.joints_init_speed, 1.4)  # 移动到初始位姿
 
             # main loop
             dt = 1. / self.frequency
@@ -246,6 +245,7 @@ class RTDEInterpolationController(mp.Process):
             # use monotonic time to make sure the control loop never go backward
             curr_t = time.monotonic()
             last_waypoint_time = curr_t
+            # 位姿轨迹插值器（PoseTrajectoryInterpolator）
             pose_interp = PoseTrajectoryInterpolator(
                 times=[curr_t],
                 poses=[curr_pose]
@@ -255,14 +255,14 @@ class RTDEInterpolationController(mp.Process):
             keep_running = True
             while keep_running:
                 # start control iteration
-                t_start = rtde_c.initPeriod()
+                t_start = rtde_c.initPeriod()   # start of a control period / cycle
 
                 # send command to robot
                 t_now = time.monotonic()
                 # diff = t_now - pose_interp.times[-1]
                 # if diff > 0:
                 #     print('extrapolate', diff)
-                pose_command = pose_interp(t_now)   # 计算当前时间的目标位姿，使用插值法
+                pose_command = pose_interp(t_now)   # 使用插值法获取当前时刻的目标位姿
                 vel = 0.5
                 acc = 0.5
                 # 将计算出的目标位姿传递给机器人
@@ -302,18 +302,19 @@ class RTDEInterpolationController(mp.Process):
                         # if we start the next interpolation with curr_pose
                         # the command robot receive will have discontinouity 
                         # and cause jittery robot behavior.
-                        target_pose = command['target_pose']
-                        duration = float(command['duration'])
-                        curr_time = t_now + dt
-                        t_insert = curr_time + duration
+                        target_pose = command['target_pose']    # 目标位姿
+                        duration = float(command['duration'])   # 期望完成时间
+                        curr_time = t_now + dt  # 当前控制周期的“有效时间”（考虑执行延迟）
+                        t_insert = curr_time + duration # 期望到达新航点的时间=curr_time + duration
+                        # 从当前轨迹在 curr_time 的位姿开始，到 t_insert 时到达 target_pose，中间通过插值生成连续位姿
                         pose_interp = pose_interp.drive_to_waypoint(
-                            pose=target_pose,
-                            time=t_insert,
-                            curr_time=curr_time,
-                            max_pos_speed=self.max_pos_speed,
-                            max_rot_speed=self.max_rot_speed
+                            pose=target_pose,   # 新目标位姿
+                            time=t_insert,      # 期望到达时间
+                            curr_time=curr_time,    # 当前时间（轨迹起点时间）
+                            max_pos_speed=self.max_pos_speed,   # 最大移动速度限制
+                            max_rot_speed=self.max_rot_speed    # 最大旋转速度限制
                         )
-                        last_waypoint_time = t_insert
+                        last_waypoint_time = t_insert   # 最后一个waypoint的时间
                         if self.verbose:
                             print("[RTDEPositionalController] New pose target:{} duration:{}s".format(
                                 target_pose, duration))

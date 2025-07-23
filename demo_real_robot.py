@@ -38,14 +38,14 @@ from diffusion_policy.real_world.keystroke_counter import (
 @click.option('--command_latency', '-cl', default=0.01, type=float, help="Latency between receiving SapceMouse command to executing on Robot in Sec.")
 def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_latency):
     dt = 1/frequency    # delta t = 1/frequency
-    with SharedMemoryManager() as shm_manager:
-        with KeystrokeCounter() as key_counter, \
+    with SharedMemoryManager() as shm_manager:  # 共享内存，键盘监听，SpaceMouse输入
+        with KeystrokeCounter() as key_counter, \   
             Spacemouse(shm_manager=shm_manager) as sm, \
             RealEnv(
                 output_dir=output, 
                 robot_ip=robot_ip, 
                 # recording resolution
-                obs_image_resolution=(1280,720),
+                obs_image_resolution=(1280,720),    # realsense 分辨率
                 frequency=frequency, # default 10 Hz
                 init_joints=init_joints,
                 enable_multi_cam_vis=True,
@@ -73,12 +73,12 @@ def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_laten
             is_recording = False
             while not stop:
                 # calculate timing
-                t_cycle_end = t_start + (iter_idx + 1) * dt
-                t_sample = t_cycle_end - command_latency
-                t_command_target = t_cycle_end + dt
+                t_cycle_end = t_start + (iter_idx + 1) * dt # 本轮循环结束时间
+                t_sample = t_cycle_end - command_latency    # 采样输入的目标时间
+                t_command_target = t_cycle_end + dt # 命令执行的目标时间
 
                 # pump obs
-                obs = env.get_obs()
+                obs = env.get_obs() # 获取当前观测
 
                 # handle key presses
                 press_events = key_counter.get_press_events()
@@ -130,8 +130,8 @@ def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_laten
                 # get teleop command
                 sm_state = sm.get_motion_state_transformed()
                 # print(sm_state)
-                dpos = sm_state[:3] * (env.max_pos_speed / frequency) #  计算位置变化量
-                drot_xyz = sm_state[3:] * (env.max_rot_speed / frequency) #  计算旋转变化量
+                dpos = sm_state[:3] * (env.max_pos_speed / frequency) # 将 SpaceMouse 的原始位移输入转换为机械臂的实际位移增量，一帧走了多少的距离
+                drot_xyz = sm_state[3:] * (env.max_rot_speed / frequency)
                 
                 if not sm.is_button_pressed(0):
                     # translation mode
@@ -152,8 +152,8 @@ def main(output, robot_ip, vis_camera_idx, init_joints, frequency, command_laten
                     actions=[target_pose], 
                     timestamps=[t_command_target-time.monotonic()+time.time()],
                     stages=[stage])
-                precise_wait(t_cycle_end)
-                iter_idx += 1
+                precise_wait(t_cycle_end)   # 精确等待到下一周期开始
+                iter_idx += 1   # 循环计数加1
 
 # %%
 if __name__ == '__main__':

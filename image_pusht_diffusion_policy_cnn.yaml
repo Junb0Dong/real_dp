@@ -93,11 +93,11 @@ policy:
   shape_meta:
     action:
       shape:
-      - 2
+      - 2   # PushT中 2 可能表示二维向量（x, y）？
     obs:
       agent_pos:
         shape:
-        - 2
+        - 2 # PushT中 2 可能表示（x, y）？
         type: low_dim
       image:
         shape:

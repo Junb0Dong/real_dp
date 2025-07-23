@@ -21,7 +21,7 @@ class PushTImageRunner(BaseImageRunner):
     def __init__(self,
             output_dir,
             n_train=10,
-            n_train_vis=3,
+            n_train_vis=3,  # 训练可视化的数据数量
             train_start_seed=0,
             n_test=22,
             n_test_vis=6,
@@ -30,11 +30,11 @@ class PushTImageRunner(BaseImageRunner):
             max_steps=200,
             n_obs_steps=8,
             n_action_steps=8,
-            fps=10,
-            crf=22,
-            render_size=96,
-            past_action=False,
-            tqdm_interval_sec=5.0,
+            fps=10, # 渲染的帧数
+            crf=22, # 压缩率
+            render_size=96, # 渲染图像的大小
+            past_action=False, 
+            tqdm_interval_sec=5.0,  # 进度条更新的时间间隔
             n_envs=None
         ):
         super().__init__(output_dir)
@@ -43,12 +43,17 @@ class PushTImageRunner(BaseImageRunner):
 
         steps_per_render = max(10 // fps, 1)
         def env_fn():
+            """
+            创建一个记录pushT视频的环境
+            """
             return MultiStepWrapper(
                 VideoRecordingWrapper(
                     PushTImageEnv(
+                        # pushT相关参数
                         legacy=legacy_test,
                         render_size=render_size
-                    ),
+                    ), 
+                    # video相关参数
                     video_recoder=VideoRecorder.create_h264(
                         fps=fps,
                         codec='h264',
@@ -60,27 +65,28 @@ class PushTImageRunner(BaseImageRunner):
                     file_path=None,
                     steps_per_render=steps_per_render
                 ),
+                # multistep相关参数
                 n_obs_steps=n_obs_steps,
                 n_action_steps=n_action_steps,
                 max_episode_steps=max_steps
             )
 
-        env_fns = [env_fn] * n_envs
-        env_seeds = list()
-        env_prefixs = list()
-        env_init_fn_dills = list()
+        env_fns = [env_fn] * n_envs # 创建n_envs个环境
+        env_seeds = list()  # 环境的随机种子
+        env_prefixs = list()    # 环境的初始化函数
+        env_init_fn_dills = list()  # 环境的初始化函数的dill序列化
         # train
         for i in range(n_train):
             seed = train_start_seed + i
-            enable_render = i < n_train_vis
+            enable_render = i < n_train_vis # 渲染可视化
 
             def init_fn(env, seed=seed, enable_render=enable_render):
                 # setup rendering
                 # video_wrapper
                 assert isinstance(env.env, VideoRecordingWrapper)
-                env.env.video_recoder.stop()
+                env.env.video_recoder.stop()    # 停止视频录制
                 env.env.file_path = None
-                if enable_render:
+                if enable_render:  # 如果需要渲染，则创建一个新的视频文件
                     filename = pathlib.Path(output_dir).joinpath(
                         'media', wv.util.generate_id() + ".mp4")
                     filename.parent.mkdir(parents=False, exist_ok=True)
@@ -91,9 +97,9 @@ class PushTImageRunner(BaseImageRunner):
                 assert isinstance(env, MultiStepWrapper)
                 env.seed(seed)
             
-            env_seeds.append(seed)
-            env_prefixs.append('train/')
-            env_init_fn_dills.append(dill.dumps(init_fn))
+            env_seeds.append(seed)  # 添加种子
+            env_prefixs.append('train/')    # 添加前缀
+            env_init_fn_dills.append(dill.dumps(init_fn))   # 添加初始化函数的dill序列化
 
         # test
         for i in range(n_test):
@@ -118,7 +124,7 @@ class PushTImageRunner(BaseImageRunner):
                 env.seed(seed)
             
             env_seeds.append(seed)
-            env_prefixs.append('test/')
+            env_prefixs.append('test/') # 测试集的前缀
             env_init_fn_dills.append(dill.dumps(init_fn))
 
         env = AsyncVectorEnv(env_fns)
@@ -148,22 +154,22 @@ class PushTImageRunner(BaseImageRunner):
         env = self.env
 
         # plan for rollout
-        n_envs = len(self.env_fns)
-        n_inits = len(self.env_init_fn_dills)
-        n_chunks = math.ceil(n_inits / n_envs)
+        n_envs = len(self.env_fns)  # 环境数量
+        n_inits = len(self.env_init_fn_dills)   # 初始化函数的数量
+        n_chunks = math.ceil(n_inits / n_envs)  # 计算需要运行的轮数
 
         # allocate data
         all_video_paths = [None] * n_inits
         all_rewards = [None] * n_inits
 
         for chunk_idx in range(n_chunks):
-            start = chunk_idx * n_envs
-            end = min(n_inits, start + n_envs)
-            this_global_slice = slice(start, end)
-            this_n_active_envs = end - start
-            this_local_slice = slice(0,this_n_active_envs)
+            start = chunk_idx * n_envs  # 确定当前轮的起始索引
+            end = min(n_inits, start + n_envs)  # 确定当前轮的结束索引
+            this_global_slice = slice(start, end)   # 全局切片
+            this_n_active_envs = end - start    # 当前轮的激活环境数量
+            this_local_slice = slice(0,this_n_active_envs)  # 局部切片
             
-            this_init_fns = self.env_init_fn_dills[this_global_slice]
+            this_init_fns = self.env_init_fn_dills[this_global_slice]   # 当前轮次需要使用的初始化函数
             n_diff = n_envs - len(this_init_fns)
             if n_diff > 0:
                 this_init_fns.extend([self.env_init_fn_dills[0]]*n_diff)
@@ -184,7 +190,7 @@ class PushTImageRunner(BaseImageRunner):
             while not done:
                 # create obs dict
                 np_obs_dict = dict(obs)
-                if self.past_action and (past_action is not None):
+                if self.past_action and (past_action is not None):  # 获取上一步动作
                     # TODO: not tested
                     np_obs_dict['past_action'] = past_action[
                         :,-(self.n_obs_steps-1):].astype(np.float32)
@@ -196,7 +202,7 @@ class PushTImageRunner(BaseImageRunner):
 
                 # run policy
                 with torch.no_grad():
-                    action_dict = policy.predict_action(obs_dict)
+                    action_dict = policy.predict_action(obs_dict)   # 动作预测
 
                 # device_transfer
                 np_action_dict = dict_apply(action_dict,
@@ -213,8 +219,8 @@ class PushTImageRunner(BaseImageRunner):
                 pbar.update(action.shape[1])
             pbar.close()
 
-            all_video_paths[this_global_slice] = env.render()[this_local_slice]
-            all_rewards[this_global_slice] = env.call('get_attr', 'reward')[this_local_slice]
+            all_video_paths[this_global_slice] = env.render()[this_local_slice] # 取当前轮次所有环境的视频路径
+            all_rewards[this_global_slice] = env.call('get_attr', 'reward')[this_local_slice]   # 获取当前轮次所有环境的奖励
         # clear out video buffer
         _ = env.reset()
 

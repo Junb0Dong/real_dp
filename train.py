@@ -30,7 +30,7 @@ def main(cfg: OmegaConf):
     OmegaConf.resolve(cfg)  # resolve the config, interpolate the values(${}), and return the resolved config
 
     cls = hydra.utils.get_class(cfg._target_)   # import _target_ class from .yaml file, get class
-    workspace: BaseWorkspace = cls(cfg) # create instance of class
+    workspace: BaseWorkspace = cls(cfg) # 实例化从配置中加载的类，并传入完整配置对象
     workspace.run() # run the instance
 
 if __name__ == "__main__":
