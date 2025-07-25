@@ -44,6 +44,7 @@ def test():
     with MultiRealsense(
             # resolution=(1280,720),
             resolution=(640,480),
+            # resolution=(1280,240),
             capture_fps=15,
             record_fps=15,
             enable_color=True,
@@ -68,14 +69,16 @@ def test():
         vis_img = None
         while True:
             out = realsense.get(out=out)
+            print("out:", type(out), out)
 
-            # bgr = out['color']
-            # print(bgr.shape)
-            # vis_img = np.concatenate(list(bgr), axis=0, out=vis_img)
-            # cv2.imshow('default', vis_img)
-            # key = cv2.pollKey()
-            # if key == ord('q'):
-            #     break
+            # 获取所有相机的 color 图像
+            bgr_list = [out[k]['color'] for k in sorted(out.keys())]
+            vis_img = np.concatenate(bgr_list, axis=0)  # 垂直拼接
+            # vis_img = np.concatenate(bgr_list, axis=1)  # 水平拼接
+
+            cv2.imshow('multi_realsense', vis_img)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
             time.sleep(1/60)
             if time.time() > (rec_start_time + 20.0):

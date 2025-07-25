@@ -10,7 +10,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation
 import time
 
-from diffusion_policy.real_world.rtde_vp_controller import RTDEVpController
+from diffusion_policy.real_world.rtde_realman_gripper_controller import RTDERealmanGripperController
 from multiprocessing.managers import SharedMemoryManager
 
 # Define a simple Low-Pass Filter class
@@ -49,7 +49,7 @@ def main():
 
     # 使用共享内存管理器
     with SharedMemoryManager() as shm_manager:
-        robot = RTDEVpController(
+        robot = RTDERealmanGripperController(
             shm_manager=shm_manager,
             robot_ip=robot_ip,
             frequency=robot_frequency,
@@ -120,8 +120,8 @@ def main():
             # print("pose_array: ",target_pose)
 
             
-            # close_gripper = vp.latest["left_pinch_distance"] < 0.03
-            close_gripper = 1
+            close_gripper = vp.latest["left_pinch_distance"] < 0.03
+            # close_gripper = 1
 
             # target_pose = [0.2536367416381836, 0.005998861975967884, 0.2363194465637207, 0.19016963243484497, -0.007337283343076706, 0.9816972017288208, 0.007230011280626059]
             
@@ -139,7 +139,7 @@ def main():
             sleep_time = max(0.0, control_period - loop_duration)
             time.sleep(sleep_time)  # 精确等待剩余时间
             actual_freq = 1.0 / (loop_duration + sleep_time)
-            print(f"In test_rtde_vp_controller the Actual frequency: {actual_freq:.2f}Hz")
+            # print(f"In test_rtde_vp_controller the Actual frequency: {actual_freq:.2f}Hz")
 
 
         time.sleep(1)

@@ -33,6 +33,7 @@ class VisionPro(mp.Process):
         example = {
             'left_wrist': np.zeros((4, 4), dtype=dtype),  # 4x4 matrix for left wrist pose
             'right_wrist': np.zeros((4, 4), dtype=dtype),  # 4x4 matrix for right wrist pose
+            'left_pinch_distance': 0.1, # distance between left index tip and thumb tip
             'receive_timestamp': time.time()
         }
         self.ring_buffer = SharedMemoryRingBuffer.create_from_examples(
@@ -66,6 +67,14 @@ class VisionPro(mp.Process):
         state = self.ring_buffer.get()
         # print(f"Retrieved state from ring_buffer: {state['left_wrist']}")
         return np.array(state['right_wrist'], dtype=self.dtype)
+    
+    def get_left_pinch_distance(self):
+        """
+        Retrieve the latest left wrist state from the ring buffer.
+        """
+        state = self.ring_buffer.get()
+        # print(f"Retrieved state from ring_buffer: {state['left_wrist']}")
+        return np.array(state['left_pinch_distance'], dtype=self.dtype)
 
     # ======= Start/Stop APIs ==========
 
@@ -100,9 +109,11 @@ class VisionPro(mp.Process):
             # Initial state to allow immediate client reading
             left_wrist = np.zeros((4, 4), dtype=self.dtype)
             right_wrist = np.zeros((4, 4), dtype=self.dtype)
+            left_pinch_distance = 1.0  # Default pinch distance
             self.ring_buffer.put({
                 'left_wrist': left_wrist,
                 'right_wrist': right_wrist,
+                'left_pinch_distance': left_pinch_distance,
                 'receive_timestamp': time.time()
             })
             self.ready_event.set()
@@ -119,9 +130,11 @@ class VisionPro(mp.Process):
                         continue
                     left_wrist = r['left_wrist']
                     right_wrist = r['right_wrist']
+                    left_pinch_distance = r['left_pinch_distance']
                     state = {
                         'left_wrist': np.array(left_wrist, dtype=self.dtype),
                         'right_wrist': np.array(right_wrist, dtype=self.dtype),
+                        'left_pinch_distance': left_pinch_distance,
                         'receive_timestamp': receive_timestamp
                     }
 

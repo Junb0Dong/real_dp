@@ -18,11 +18,11 @@ from diffusion_policy.real_world.visionpro_shared_memory import VisionPro
 if __name__ == '__main__':
     print("Running VisionPro test...")
     with SharedMemoryManager() as shm_manager:
-        with VisionPro(shm_manager=shm_manager, frequency=10, dtype=np.float64, visionpro_ip="10.12.174.92") as vp:
+        with VisionPro(shm_manager=shm_manager, frequency=10, dtype=np.float64, visionpro_ip="10.12.169.155") as vp:
             time.sleep(1.0)
             
             print("VisionPro started.")
             while True:
-                retrieved_data = vp.get_right_wrist_state()  # 获取左手腕状态
+                retrieved_data = vp.get_left_pinch_distance()  # 获取左手腕状态
                 print("get data", retrieved_data)
-                time.sleep(0.1)
+                time.sleep(0.5)

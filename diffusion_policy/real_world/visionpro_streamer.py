@@ -1,11 +1,16 @@
+"""
+备份修改的 VisionProStreamer 类
+因为对源代码添加了频率控制，所以备份一下，后面重装环境后需要覆盖源代码的这个文件。
+路径参考：/home/junbo/anaconda3/envs/robodiff/lib/python3.9/site-packages/avp_stream/streamer.py
+"""
+
 import grpc
 from avp_stream.grpc_msg import * 
 from threading import Thread
 from avp_stream.utils.grpc_utils import * 
 import time 
 import numpy as np 
-from collections import deque
-# /home/junbo/anaconda3/envs/robodiff/lib/python3.9/site-packages/avp_stream/streamer.py
+from collections import deque 
 
 YUP2ZUP = np.array([[[1, 0, 0, 0], 
                     [0, 0, -1, 0], 

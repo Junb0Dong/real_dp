@@ -43,7 +43,7 @@ def gripper_control_proc(gripper_state, robot_controller):
             robot_controller.rm_set_gripper_release(500, True, 10)
         # last_state = gripper_state.value
 
-class RTDEVpController(mp.Process):
+class RTDERealmanGripperController(mp.Process):
     def __init__(self,
         shm_manager: SharedMemoryManager, 
         robot_ip = "10.20.46.135", 
@@ -105,6 +105,7 @@ class RTDEVpController(mp.Process):
         )
 
         self.current_target_pose = np.array(self.init_target_pose, dtype=np.float64) # Placeholder
+        print("first current target pose is also init target pose: ", self.current_target_pose)
         self.close_gripper = False
 
         self.ready_event = mp.Event()
@@ -113,7 +114,7 @@ class RTDEVpController(mp.Process):
         self.ring_buffer = ring_buffer
         self.receive_keys = receive_keys
 
-        print("this is __init__ function of RTDEVpController")
+        print("this is __init__ function of RTDERealmanGripperController")
 
     # ========= launch method ===========
     def start(self, wait=True):
@@ -203,7 +204,7 @@ class RTDEVpController(mp.Process):
             # gripper_proc.start()
 
             self._last_gripper_commanded_state = open # None, "open", "close"
-            print("this is run function of RTDEVpController")
+            print("this is run function of RTDERealmanGripperController")
 
 
             time.sleep(1)
@@ -212,27 +213,31 @@ class RTDEVpController(mp.Process):
             iter_idx = 0
             control_period = 1.0 / self.frequency  # 每次循环的目标周期
             keep_running = True
+            print(f"stop_event initial state: {self.stop_event.is_set()}")
             while keep_running and not self.stop_event.is_set():
+                print(f"Loop iteration {iter_idx}: stop_event={self.stop_event.is_set()}, keep_running={keep_running}")
                 loop_start_time = time.perf_counter()  # 记录循环开始时间
 
                 self.robot.rm_movep_canfd(self.current_target_pose, False, 1, 80)   # robot move to target pose
                 # self.robot.rm_movej_p(self.current_target_pose, v=20, r=0, connect=0, block=1)  # robot move to target pose
-                gripper_state.value = 1 if self.close_gripper else 0    # update gripper state
+                # gripper_state.value = 1 if self.close_gripper else 0    # update gripper state
 
-                # if self.close_gripper:
-                #     if self._last_gripper_commanded_state != "close":
-                #         self.robot.rm_set_gripper_pick(500, 200, True, 10) # 仍然是阻塞的
-                #         self._last_gripper_commanded_state = "close"
-                # else:
-                #     if self._last_gripper_commanded_state != "open":
-                #         self.robot.rm_set_gripper_release(500, True, 10) # 仍然是阻塞的
-                #         self._last_gripper_commanded_state = "open"
+                if self.close_gripper:
+                    if self._last_gripper_commanded_state != "close":
+                        self.robot.rm_set_gripper_pick(500, 200, True, 10) # 仍然是阻塞的
+                        self._last_gripper_commanded_state = "close"
+                else:
+                    if self._last_gripper_commanded_state != "open":
+                        self.robot.rm_set_gripper_release(500, True, 10) # 仍然是阻塞的
+                        self._last_gripper_commanded_state = "open"
 
                 # fetch command from queue
                 try:
                     commands = self.input_queue.get_all()   # NOTE: get command from shared memory
+                    print("commands['cmd']:", commands['cmd'], type(commands['cmd']), np.shape(commands['cmd']))
                     n_cmd = len(commands['cmd'])
                 except Empty:
+                    print("No commands received.")
                     n_cmd = 0 
 
                 # execute commands
@@ -241,13 +246,15 @@ class RTDEVpController(mp.Process):
                     for key, value in commands.items():
                         command[key] = value[i]
                     cmd = command['cmd']
-
+                    print(f"Processing command {i+1}/{n_cmd}: cmd={cmd}")
                     if cmd == Command.STOP.value:
+                        print("Received STOP command, stopping the loop.")
                         keep_running = False
                         # stop immediately, ignore later commands
                         break
 
                     elif cmd == Command.REALMAN_GRIPPER.value:
+                        print(f"Received REALMAN_GRIPPER command: target_pose={command['target_pose']}, close_gripper={command['close_gripper']}")
                         self.current_target_pose = command['target_pose']
                         self.close_gripper = command['close_gripper']
 
@@ -280,20 +287,20 @@ class RTDEVpController(mp.Process):
                 print(f"Actual frequency: {actual_freq:.2f}Hz")
 
         except Exception as e:
-            print(f"An unexpected error occurred in RTDEVpController run loop: {e}")
+            print(f"An unexpected error occurred in RTDERealmanGripperController run loop: {e}")
         finally:
             # Mandatory cleanup - only if robot was successfully created
             if self.robot:
                 try:
                     # IMPORTANT: Send a stop command to the robot here
-                    print("RTDEVpController: Sending stop command to robot.")
+                    print("RTDERealmanGripperController: Sending stop command to robot.")
                     # Also consider if there's a command to clear alarms or reset state
                     # self.robot.rm_clear_alarms() # If applicable and needed
                     self.robot.rm_delete_robot_arm()
                     self.robot.rm_destroy()
-                    print("RTDEVpController: Robot arm instance deleted.")
+                    print("RTDERealmanGripperController: Robot arm instance deleted.")
                 except Exception as e:
                     print(f"Error during robot cleanup: {e}")
             # Ensure ready event is set even if an error occurred, to unblock parent
             self.ready_event.set() # This might already be set from iter_idx == 0, but safe to repeat.
-            print("RTDEVpController process terminated.")
+            print("RTDERealmanGripperController process terminated.")

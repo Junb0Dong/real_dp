@@ -36,6 +36,7 @@ def test():
             # resolution=(1280,720),
             # resolution=(960,540),
             resolution=(640,480),
+            # resolution=(424,240),
             capture_fps=15,
             enable_color=True,
             # enable_depth=True,
