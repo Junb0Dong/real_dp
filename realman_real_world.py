@@ -58,9 +58,11 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
     # 二代关节数据
     # joint_init = [-56.13,31.024,-0.708,58.763,0.892,80.452,-0.482],[-0.97963588, 0.54138366, -0.01235693, 1.02560784, 0.01560324, 1.40420468, -0.00844739]
     # init_target_pose = [0.20320788025856018, -0.3048255741596222, 0.318773090839386, 0.0769142135977745, 0.4700179398059845, 0.8785333633422852, -0.03669378161430359]
-
-    joints_angle_init = [-0.97963588, 0.54138366, -0.01235693, 1.02560784, 0.01560324, 1.40420468, -0.00844739]
-    pose_init = [0.20320788025856018, -0.3048255741596222, 0.318773090839386, 0.0769142135977745, 0.4700179398059845, 0.8785333633422852, -0.03669378161430359]
+    # 三代关节数据
+    # joint_init = [-54.858,-0.45,0.001,87.28,0.001,64.248,-30.001], [-9.57435241e-01, -7.83652836e-03, -1.74532933e-05, 1.52325358e+00, 6.98131734e-05, 1.12135660e+00, 5.23633696e-01]
+    # init_target_pose = [0.1596326380968094, -0.22676502168178558, 0.3820781111717224, 0.18435519933700562, 0.2083999514579773, 0.9456217288970947, -0.1684700846672058]
+    joints_angle_init = [0.113,-8.014,0.185,87.687,-0.004,64.609,-0.008]
+    pose_init = [0.25497639179229736, 0.0013807571958750486, 0.4147399663925171, 0.30669981241226196, -0.002576481783762574, 0.951802670955658, 0.0005165305337868631]
     with SharedMemoryManager() as shm_manager:  # 共享内存，键盘监听，SpaceMouse输入
         with KeystrokeCounter() as key_counter, \
             VisionPro(shm_manager=shm_manager, frequency=30, visionpro_ip=vp_ip) as vp, \
@@ -206,8 +208,18 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
 
                 R_rel_vp = np.dot(hand_rotation_matrix, np.linalg.inv(initial_hand_rotation_matrix))    # 计算手部在 VP 坐标系中的相对旋转
                 R_rel_robot = np.dot(R_Vp2Robot, np.dot(R_rel_vp, R_Vp2Robot.T))    # 将相对旋转转换到机械臂坐标系
-                target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot)   # 将转换后的相对旋转应用到机械臂初始旋转
+                # target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot)   # 将转换后的相对旋转应用到机械臂初始旋转
+                # ee_quat_target = Rotation.from_matrix(target_rot_matrix).as_quat()  # 转换为四元数
+
+                
+                # 将 R_rel_robot 转换为欧拉角（假设 'ZYX' 顺序：yaw-Z, pitch-Y, roll-X）
+                euler_angles = Rotation.from_matrix(R_rel_robot).as_euler('ZYX')
+                adjusted_euler_angles = [-euler_angles[0], euler_angles[1], euler_angles[2]]    # 调整 roll 轴方向（取反 roll 角）
+                R_rel_robot_adjusted = Rotation.from_euler('ZYX', adjusted_euler_angles).as_matrix()    # 将调整后的欧拉角转换回旋转矩阵
+                target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot_adjusted)  # 计算目标旋转矩阵
                 ee_quat_target = Rotation.from_matrix(target_rot_matrix).as_quat()  # 转换为四元数
+
+
 
                 d_pos_raw = hand_xyz[:3]
                 # 坐标系与机器人的坐标系对齐

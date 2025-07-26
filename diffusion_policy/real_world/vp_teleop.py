@@ -45,7 +45,7 @@ def main():
     print("机械臂ID：", handle.id)
 
     # init visionpro
-    visionpro_ip = "10.12.169.155" 
+    visionpro_ip = "10.14.106.60" 
     vp_pose_scale_x = 0.8
     vp_pose_scale_y = 0.8
     vp_pose_scale_z = 0.8
@@ -58,12 +58,20 @@ def main():
         [1, 0, 0],
         [0, -1, 0] 
         ])
+    
+    # R_Vp2Robot = np.array([
+    #     [0, 0, -1],
+    #     [1, 0, 0],
+    #     [0, -1, 0] 
+    #     ])
+
+
 
     # Get API version
     print("\nAPI Version: ", rm_api_version(), "\n")
 
     # Perform movej motion
-    robot.rm_movej([1.341,20.622,-0.997,72.163,1.259,65.287,-0.68], v=20, r=0, connect=0, block=1)
+    robot.rm_movej([-0.001,28.947,0.001,81.028,-0.001,-20.456,0], v=20, r=0, connect=0, block=1)
 
     # robot arm joint2pose solver
     arm_model = rm_robot_arm_model_e.RM_MODEL_RM_75_E
@@ -108,8 +116,16 @@ def main():
 
         R_rel_vp = np.dot(hand_rotation_matrix, np.linalg.inv(initial_hand_rotation_matrix))    # 计算手部在 VP 坐标系中的相对旋转
         R_rel_robot = np.dot(R_Vp2Robot, np.dot(R_rel_vp, R_Vp2Robot.T))    # 将相对旋转转换到机械臂坐标系
-        target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot)   # 将转换后的相对旋转应用到机械臂初始旋转
+        # target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot)   # 将转换后的相对旋转应用到机械臂初始旋转
+
+        # 加的小trick:
+        euler_angles = Rotation.from_matrix(R_rel_robot).as_euler('ZYX') # 将 R_rel_robot 转换为欧拉角（zyx内旋）
+        adjusted_euler_angles = [-euler_angles[0], euler_angles[1], euler_angles[2]]    # 调整 roll 轴方向（取反 roll 角）
+        R_rel_robot_adjusted = Rotation.from_euler('ZYX', adjusted_euler_angles).as_matrix()    # 将调整后的欧拉角转换回旋转矩阵
+        target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot_adjusted)  # 计算目标旋转矩阵
+        
         ee_quat_target = Rotation.from_matrix(target_rot_matrix).as_quat()  # 转换为四元数
+        # ee_quat_target = Rotation.from_matrix(target_rot_matrix).as_euler('ZYX')  # 转换为eular
 
         d_pos_raw = hand_xyz[:3]
         # 坐标系与机器人的坐标系对齐
