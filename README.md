@@ -24,7 +24,7 @@ base [diffusion policy](https://github.com/real-stanford/diffusion_policy)
 
 使用visionpro来遥操作机械臂采集数据。在遥操作的过程中，Press "C" to start recording. Press "S" to stop recording. Press "Q" to quit，同时确保鼠标在realsense的画面内。
 ```bash
-python realman_real_world.py -o <demo_save_dir> --robot_ip <ip_of_ur5> --vp_ip <ip_of_visionpro>
+python realman_real_world.py -o <demo_save_dir> --robot_ip <ip_of_robot> --vp_ip <ip_of_visionpro>
 ```
 
 保存数据后，将真实的数据转换为`.zarr`格式的数据
