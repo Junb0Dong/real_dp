@@ -9,7 +9,7 @@ base [diffusion policy](https://github.com/real-stanford/diffusion_policy)
 
 ### HardWare 
 - Realman Robot X1
-- VisionPro
+- VisionPro X1
 - Realsense D435 X2
 - gripper X1
 
