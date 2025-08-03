@@ -1,4 +1,5 @@
 """
+scp /path/to/local/file username@server_ip:/path/to/remote/directory
 Usage:
 (robodiff)$ python demo_real_robot.py -o <demo_save_dir> --robot_ip <ip_of_ur5>
 
@@ -86,7 +87,7 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
             print("enter the 1st step of main funcution!")
 
 
-            time.sleep(3.0)
+            time.sleep(1.0)
 
             cv2.setNumThreads(1)
             
@@ -99,9 +100,9 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
             
             # prepare for vp teleoperation 
             # VisionPro 参数
-            vp_pose_scale_x = 0.8
-            vp_pose_scale_y = 0.8
-            vp_pose_scale_z = 0.8
+            vp_pose_scale_x = 1.2
+            vp_pose_scale_y = 1.2
+            vp_pose_scale_z = 0.9
             filter_alpha_pose = 0.7  # 低通滤波器参数
 
             # VisionPro 和机械臂坐标系转换矩阵
@@ -134,7 +135,7 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
             print("the shape of base_ee_pose", base_hand_pose.shape)
             initial_hand_xyz = base_hand_pose[:3, 3]
             initial_hand_rotation_matrix = base_hand_pose[:3, :3]
-
+ 
 
             print('Ready!')
             state = env.get_robot_state()
@@ -190,7 +191,7 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
                     text,
                     (10,30),
                     fontFace=cv2.FONT_HERSHEY_SIMPLEX,
-                    fontScale=1,
+                    fontScale=0.8,
                     thickness=2,
                     color=(255,255,255)
                 )
@@ -219,8 +220,6 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
                 target_rot_matrix = np.dot(robot_initial_rot_matrix, R_rel_robot_adjusted)  # 计算目标旋转矩阵
                 ee_quat_target = Rotation.from_matrix(target_rot_matrix).as_quat()  # 转换为四元数
 
-
-
                 d_pos_raw = hand_xyz[:3]
                 # 坐标系与机器人的坐标系对齐
                 d_pos_scaled = np.array([
@@ -238,7 +237,8 @@ def main(output, robot_ip, vis_camera_idx, frequency, command_latency, vp_ip):
                 # print("pose_array: ",target_pose)
 
                 
-                close_gripper = vp.get_left_pinch_distance() < 0.03
+                # close_gripper = vp.get_left_pinch_distance() < 0.03
+                close_gripper = vp.get_right_pinch_distance() < 0.03
                 # close_gripper = 1
 
                 # print("close_gripper: ", close_gripper)

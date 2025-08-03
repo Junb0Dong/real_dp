@@ -71,7 +71,7 @@ def main():
     print("\nAPI Version: ", rm_api_version(), "\n")
 
     # Perform movej motion
-    robot.rm_movej([-0.001,28.947,0.001,81.028,-0.001,-20.456,0], v=20, r=0, connect=0, block=1)
+    robot.rm_movej([0.113,-8.014,0.185,87.687,-0.004,64.609,-0.008], v=20, r=0, connect=0, block=1)
 
     # robot arm joint2pose solver
     arm_model = rm_robot_arm_model_e.RM_MODEL_RM_75_E

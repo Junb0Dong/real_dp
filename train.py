@@ -4,6 +4,11 @@ Training:
 python train.py --config-name=train_diffusion_lowdim_workspace
 """
 
+# import os
+# os.environ["WANDB_API_KEY"] = "0412b933c6b562fef5f1356dcb63e4f5e98f194f"
+# os.environ["WANDB_MODE"] = "offline"
+# os.environ["WANDB_DISABLED"] = "true"
+
 import sys
 # use line-buffering for both stdout and stderr
 sys.stdout = open(sys.stdout.fileno(), mode='w', buffering=1)

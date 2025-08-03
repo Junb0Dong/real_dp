@@ -198,7 +198,7 @@ class RTDERealmanGripperController(mp.Process):
 
 
             # gripper control
-            gripper_state = multiprocessing.Value('i', 0)  # 0: open, 1: close
+            # gripper_state = multiprocessing.Value('i', 0)  # 0: open, 1: close
             # gripper_proc = multiprocessing.Process(target=gripper_control_proc, args=(gripper_state, self.robot))
             # gripper_proc.daemon = True 
             # gripper_proc.start()
@@ -215,7 +215,7 @@ class RTDERealmanGripperController(mp.Process):
             keep_running = True
             print(f"stop_event initial state: {self.stop_event.is_set()}")
             while keep_running and not self.stop_event.is_set():
-                print(f"Loop iteration {iter_idx}: stop_event={self.stop_event.is_set()}, keep_running={keep_running}")
+                # print(f"Loop iteration {iter_idx}: stop_event={self.stop_event.is_set()}, keep_running={keep_running}")
                 loop_start_time = time.perf_counter()  # 记录循环开始时间
 
                 self.robot.rm_movep_canfd(self.current_target_pose, False, 1, 80)   # robot move to target pose
@@ -224,7 +224,7 @@ class RTDERealmanGripperController(mp.Process):
 
                 if self.close_gripper:
                     if self._last_gripper_commanded_state != "close":
-                        self.robot.rm_set_gripper_pick(500, 200, True, 10) # 仍然是阻塞的
+                        self.robot.rm_set_gripper_pick(800, 500, True, 10) # 仍然是阻塞的
                         self._last_gripper_commanded_state = "close"
                 else:
                     if self._last_gripper_commanded_state != "open":
@@ -237,7 +237,7 @@ class RTDERealmanGripperController(mp.Process):
                     print("commands['cmd']:", commands['cmd'], type(commands['cmd']), np.shape(commands['cmd']))
                     n_cmd = len(commands['cmd'])
                 except Empty:
-                    print("No commands received.")
+                    # print("No commands received.")
                     n_cmd = 0 
 
                 # execute commands
@@ -246,7 +246,7 @@ class RTDERealmanGripperController(mp.Process):
                     for key, value in commands.items():
                         command[key] = value[i]
                     cmd = command['cmd']
-                    print(f"Processing command {i+1}/{n_cmd}: cmd={cmd}")
+                    # print(f"Processing command {i+1}/{n_cmd}: cmd={cmd}")
                     if cmd == Command.STOP.value:
                         print("Received STOP command, stopping the loop.")
                         keep_running = False
@@ -254,7 +254,7 @@ class RTDERealmanGripperController(mp.Process):
                         break
 
                     elif cmd == Command.REALMAN_GRIPPER.value:
-                        print(f"Received REALMAN_GRIPPER command: target_pose={command['target_pose']}, close_gripper={command['close_gripper']}")
+                        # print(f"Received REALMAN_GRIPPER command: target_pose={command['target_pose']}, close_gripper={command['close_gripper']}")
                         self.current_target_pose = command['target_pose']
                         self.close_gripper = command['close_gripper']
 
@@ -284,7 +284,7 @@ class RTDERealmanGripperController(mp.Process):
                 sleep_time = max(0.0, control_period - loop_duration)
                 time.sleep(sleep_time)  # 精确等待剩余时间
                 actual_freq = 1.0 / (loop_duration + sleep_time)
-                print(f"Actual frequency: {actual_freq:.2f}Hz")
+                # print(f"Actual frequency: {actual_freq:.2f}Hz")
 
         except Exception as e:
             print(f"An unexpected error occurred in RTDERealmanGripperController run loop: {e}")

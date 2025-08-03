@@ -19,12 +19,15 @@ from diffusion_policy.common.replay_buffer import ReplayBuffer
 from diffusion_policy.common.cv2_util import (
     get_image_transform, optimal_row_cols)
 
+
+# TODO：有待测试
 DEFAULT_OBS_KEY_MAP = {
     # robot
     'ActualTCPPose': 'robot_eef_pose',
     # 'ActualTCPSpeed': 'robot_eef_pose_vel',
     'ActualQ': 'robot_joint',
     # 'ActualQd': 'robot_joint_vel',
+    'gripper_state': 'gripper_state',
     # timestamps
     'step_idx': 'step_idx',
     'timestamp': 'timestamp'
@@ -328,8 +331,11 @@ class RealmanGripperEnv:
         # print("new actions shape after [0]", new_actions[0])
         # print("new actions shape after [0]", new_actions[0].shape)
         
-        # schedule waypoints
+        #NOTE: modify action, add gripper action
+        gripper_array = np.full((new_actions.shape[0], 1), int(close_gripper_state), dtype=new_actions.dtype)
+        actions_with_gripper = np.concatenate([new_actions, gripper_array], axis=1)
 
+        # robot动作执行
         self.robot.realman_gripper(
             pose=new_actions[0],
             close_gripper=close_gripper_state,  # TODO：需要指定
@@ -338,33 +344,17 @@ class RealmanGripperEnv:
         # record actions
         if self.action_accumulator is not None:
             self.action_accumulator.put(
-                new_actions,
+                actions_with_gripper,   # 前七位是pose，最后一位是夹爪状态
+                # new_actions,
+                # close_gripper,    #TODO: 夹爪状态也需要记录
                 new_timestamps
             )
+            
         if self.stage_accumulator is not None:
             self.stage_accumulator.put(
                 new_stages,
                 new_timestamps
             )
-
-        # # schedule waypoints
-        # for i in range(len(new_actions)): # 执行新动作
-        #     self.robot.realman_gripper(
-        #         pose=new_actions[i],
-        #         close_gripper=close_gripper_state,  # TODO：需要指定
-        #     )
-        
-        # # record actions
-        # if self.action_accumulator is not None:
-        #     self.action_accumulator.put(
-        #         new_actions,
-        #         new_timestamps
-        #     )
-        # if self.stage_accumulator is not None:
-        #     self.stage_accumulator.put(
-        #         new_stages,
-        #         new_timestamps
-        #     )
     
     def get_robot_state(self):
         return self.robot.get_state()

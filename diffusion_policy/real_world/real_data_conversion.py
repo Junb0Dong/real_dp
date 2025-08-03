@@ -52,39 +52,42 @@ def real_data_to_replay_buffer(
     if n_encoding_threads <= 0:
         n_encoding_threads = multiprocessing.cpu_count()
     if image_compressor is None:
-        image_compressor = Jpeg2k(level=50)
+        image_compressor = Jpeg2k(level=50) 
+
 
     # verify input
     input = pathlib.Path(os.path.expanduser(dataset_path))
-    in_zarr_path = input.joinpath('replay_buffer.zarr')
-    in_video_dir = input.joinpath('videos')
+    in_zarr_path = input.joinpath('replay_buffer.zarr') # zarr path
+    in_video_dir = input.joinpath('videos') # video paths
     assert in_zarr_path.is_dir()
     assert in_video_dir.is_dir()
     
+    # 读取原始低维数据重放缓冲区（只读模式）
     in_replay_buffer = ReplayBuffer.create_from_path(str(in_zarr_path.absolute()), mode='r')
 
     # save lowdim data to single chunk
     chunks_map = dict()
     compressor_map = dict()
     for key, value in in_replay_buffer.data.items():
-        chunks_map[key] = value.shape
+        chunks_map[key] = value.shape   # 低维数据单块存储（因数据量小）
         compressor_map[key] = lowdim_compressor
 
     print('Loading lowdim data')
+    # 复制原始低维数据到输出缓冲区
     out_replay_buffer = ReplayBuffer.copy_from_store(
-        src_store=in_replay_buffer.root.store,
-        store=out_store,
-        keys=lowdim_keys,
-        chunks=chunks_map,
-        compressors=compressor_map
+        src_store=in_replay_buffer.root.store,  # 原始数据存储
+        store=out_store,    # 输出存储
+        keys=lowdim_keys,   # 需要复制的低维数据键
+        chunks=chunks_map,  # 存储块配置
+        compressors=compressor_map  # 压缩器配置
         )
     
-    # worker function
+    # worker function 图像写入工具函数（将图像写入zarr数组并验证）
     def put_img(zarr_arr, zarr_idx, img):
         try:
-            zarr_arr[zarr_idx] = img
+            zarr_arr[zarr_idx] = img    # 将图像写入zarr数组的指定索引
             # make sure we can successfully decode
-            if verify_read:
+            if verify_read: # 验证写入后可正常读取（避免压缩/存储错误）
                 _ = zarr_arr[zarr_idx]
             return True
         except Exception as e:
@@ -93,6 +96,7 @@ def real_data_to_replay_buffer(
     
     n_cameras = 0
     camera_idxs = set() 
+    # 确定相机数量
     if image_keys is not None:
         n_cameras = len(image_keys)
         camera_idxs = set(int(x.split('_')[-1]) for x in image_keys)
@@ -103,11 +107,12 @@ def real_data_to_replay_buffer(
         camera_idxs = set(int(x.stem) for x in episode_video_paths)
         n_cameras = len(episode_video_paths)
     
+    # 获取低维数据的时序信息（用于视频帧时间对齐）
     n_steps = in_replay_buffer.n_steps
-    episode_starts = in_replay_buffer.episode_ends[:] - in_replay_buffer.episode_lengths[:]
-    episode_lengths = in_replay_buffer.episode_lengths
-    timestamps = in_replay_buffer['timestamp'][:]
-    dt = timestamps[1] - timestamps[0]
+    episode_starts = in_replay_buffer.episode_ends[:] - in_replay_buffer.episode_lengths[:] # 每个episode的起始索引
+    episode_lengths = in_replay_buffer.episode_lengths  # 每个episode的长度（步数）
+    timestamps = in_replay_buffer['timestamp'][:]   # 时间戳数据（用于计算帧间隔）
+    dt = timestamps[1] - timestamps[0]  # 时间间隔（确保视频帧与低维数据时间对齐）
 
     with tqdm(total=n_steps*n_cameras, desc="Loading image data", mininterval=1.0) as pbar:
         # one chunk per thread, therefore no synchronization needed

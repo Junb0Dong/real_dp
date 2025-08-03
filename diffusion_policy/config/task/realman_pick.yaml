@@ -1,0 +1,56 @@
+name: realman_pick
+
+image_shape: &image_shape [3, 240, 320]
+shape_meta: &shape_meta
+  # acceptable types: rgb, low_dim
+  obs:
+    camera_0:
+      shape: ${task.image_shape}
+      type: rgb
+    camera_1:
+      shape: ${task.image_shape}
+      type: rgb
+    # camera_2:
+    #   shape: ${task.image_shape}
+    #   type: rgb
+    # camera_3:
+    #   shape: ${task.image_shape}
+    #   type: rgb
+    # camera_4:
+    #   shape: ${task.image_shape}
+    #   type: rgb
+    robot_joint:
+      shape: [7]
+      type: low_dim
+    robot_eef_pose:
+      shape: [7]
+      type: low_dim
+  action: 
+    shape: [7]
+
+env_runner:
+  _target_: diffusion_policy.env_runner.realman_runner.RealmanRunner
+  # n_train: 6
+  # n_train_vis: 2
+  # train_start_seed: 0
+  # n_test: 50
+  # n_test_vis: 4
+  # legacy_test: True
+  # test_start_seed: 100000
+  # max_steps: 300
+  # n_obs_steps: ${n_obs_steps}
+  # n_action_steps: ${n_action_steps}
+  # fps: 10
+  # past_action: ${past_action_visible}
+  # n_envs: null
+
+dataset:
+  _target_: diffusion_policy.dataset.realman_pick_test_dataset.RealmanPickTestDataset
+  zarr_path: data/pick_place_0801.zarr
+  horizon: ${horizon}
+  pad_before: ${eval:'${n_obs_steps}-1'}
+  pad_after: ${eval:'${n_action_steps}-1'}
+  seed: 42
+  val_ratio: 0.02
+  max_train_episodes: 90
+  image_shape: ${task.image_shape}

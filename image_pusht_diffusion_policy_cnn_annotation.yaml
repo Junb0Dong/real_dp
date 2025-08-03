@@ -1,0 +1,196 @@
+_target_: diffusion_policy.workspace.train_diffusion_unet_hybrid_workspace.TrainDiffusionUnetHybridWorkspace
+ #  指定要使用的工作空间类，这里是 TrainDiffusionUnetHybridWorkspace，它负责管理整个训练过程
+ #  Checkpoint 设置
+checkpoint:
+  save_last_ckpt: true #   保存最新检查点
+  save_last_snapshot: false	 #  不保存最后一个快照
+  #   保存性能最好的前k个检查点的配置
+  topk:	
+    format_str: epoch={epoch:04d}-test_mean_score={test_mean_score:.3f}.ckpt #   checkpoint 文件命名格式
+    k: 5 #   保存最好的5个检查点
+    mode: max #   监控指标的模式，这里是最大化即选择测试平均分数最大的5个checkpoint
+    monitor_key: test_mean_score  #   监控的指标键，这里是测试平均分数
+ #  dataloader 设置
+dataloader:
+  batch_size: 64
+  num_workers: 8
+  persistent_workers: false #   是否在数据加载器中使用持久化工作线程
+  pin_memory: true  #   是否将数据加载到固定内存中以加速数据传输
+  shuffle: true #   是否打乱数据
+dataset_obs_steps: 2  #   数据集中观察步骤的数量
+ #  EMA 模型设置
+ema:
+  _target_: diffusion_policy.model.diffusion.ema_model.EMAModel
+  inv_gamma: 1.0  #   EMA 衰减率的逆伽马参数
+  max_value: 0.9999 #   EMA 衰减率的最大值
+  min_value: 0.0  #   EMA 衰减率的最小值
+  power: 0.75 #   EMA 衰减率的幂参数
+  update_after_step: 0  #   在训练步骤之后更新 EMA 模型，这里是 0 表示从第一步开始更新
+exp_name: default #   实验名称设置为default 
+horizon: 16 #   预测的时间步数
+keypoint_visible_rate: 1.0  #   关键点可见率设置为1.0，表示所有关键点都可见
+ #  log 日志设置
+logging:
+  group: null
+  id: null
+  mode: online
+  name: 2023.01.16-20.20.06_train_diffusion_unet_hybrid_pusht_image
+  project: diffusion_policy_debug
+  resume: true  #   是否从上次保存的checkpoint继续训练，因此可以打断训练并从checkpoint中恢复
+  tags:
+  - train_diffusion_unet_hybrid
+  - pusht_image
+  - default
+multi_run:
+  run_dir: data/outputs/2023.01.16/20.20.06_train_diffusion_unet_hybrid_pusht_image
+  wandb_name_base: 2023.01.16-20.20.06_train_diffusion_unet_hybrid_pusht_image
+n_action_steps: 8 #   action步数
+n_latency_steps: 0  #   延迟步骤数，这里设置为0表示没有延迟
+n_obs_steps: 2  #   obs步数
+name: train_diffusion_unet_hybrid #   训练名称
+obs_as_global_cond: true  #   是否将观察作为全局条件，这里设置为true表示将观察作为全局条件
+ #  优化器设置
+optimizer:
+  _target_: torch.optim.AdamW
+  betas:
+  - 0.95
+  - 0.999
+  eps: 1.0e-08
+  lr: 0.0001
+  weight_decay: 1.0e-06
+past_action_visible: false  #   过去动作可见性
+ #  policy 设置
+policy:
+  _target_: diffusion_policy.policy.diffusion_unet_hybrid_image_policy.DiffusionUnetHybridImagePolicy #   指定的policy类
+  cond_predict_scale: true  #   是否在条件预测中使用缩放
+  crop_shape: #   image裁剪
+  - 84
+  - 84
+  diffusion_step_embed_dim: 128 #   扩散步骤嵌入的维度
+  down_dims:  #   下采样维度
+  - 512
+  - 1024
+  - 2048
+  eval_fixed_crop: true #   在评估时是否使用固定裁剪
+  horizon: 16 #   预测的步数，这里是Policy的horizon，上面的是
+  kernel_size: 5  #   卷积核大小
+  n_action_steps: 8 #   action步数
+  n_groups: 8 #   组归一化的组数
+  n_obs_steps: 2  #   obs步数
+  #   noise_scheduler: 扩散时的噪声调度器
+  noise_scheduler:
+    _target_: diffusers.schedulers.scheduling_ddpm.DDPMScheduler  #   python库
+    beta_end: 0.02  #   噪声调度器的最终噪声强度
+    beta_schedule: squaredcos_cap_v2  #   噪声强度调度策略
+    beta_start: 0.0001  #   噪声调度器的初始噪声强度
+    clip_sample: true  #   是否裁剪样本
+    num_train_timesteps: 100  #   训练的步数
+    prediction_type: epsilon  #   预测类型，这里是epsilon
+    variance_type: fixed_small  #   噪声方差类型
+  num_inference_steps: 100  #   推理步骤数
+  obs_as_global_cond: true  #   是否将观测作为全局条件
+  obs_encoder_group_norm: true  #   是否使用全局条件
+  #   data的meta信息，包括动作和观察的形状和类型 in policy
+  shape_meta:
+    action:
+      shape:
+      - 2   #   PushT中 2 可能表示二维向量（x, y）？
+    obs:
+      agent_pos:
+        shape:
+        - 2 #   PushT中 2 可能表示（x, y）？
+        type: low_dim
+      image:
+        shape:
+        - 3
+        - 96
+        - 96
+        type: rgb
+ #  训练的shape_meta信息
+shape_meta:
+  action:
+    shape:
+    - 2
+  obs:
+    agent_pos:
+      shape:
+      - 2
+      type: low_dim
+    image:
+      shape:
+      - 3
+      - 96
+      - 96
+      type: rgb
+ #  任务设置
+task:
+  dataset:
+    _target_: diffusion_policy.dataset.pusht_image_dataset.PushTImageDataset  #   dataset类
+    horizon: 16 #   预测的时间步数，与policy的horizon和训练的horizon保持一致
+    max_train_episodes: 90  #   最大训练集的episode数
+    pad_after: 7  #   在序列末尾填充的步数
+    pad_before: 1 #   在序列开头填充的步数
+    seed: 42  #   随机种子
+    val_ratio: 0.02 #   验证集比例
+    zarr_path: data/pusht/pusht_cchi_v7_replay.zarr #   数据集路径
+  #   env runner设置
+  env_runner:
+    _target_: diffusion_policy.env_runner.pusht_image_runner.PushTImageRunner #   env runner类
+    fps: 10 #   帧率
+    legacy_test: true #   是否使用旧的测试方式
+    max_steps: 300  #   最大步数
+    n_action_steps: 8 #   action步数，与上面保持一致
+    n_envs: null  #   环境数量，这里设置为null表示使用默认值
+    n_obs_steps: 2  #   obs步数，与上面保持一致
+    n_test: 50  #   测试环境的数量
+    n_test_vis: 4 #   可视化测试环境的数量
+    n_train: 6 
+    n_train_vis: 2
+    past_action: false  #   是否可见过去的动作
+    test_start_seed: 100000 #   测试开始的随机种子
+    train_start_seed: 0 #   训练开始的随机种子
+  image_shape:
+  - 3
+  - 96 
+  - 96
+  name: pusht_image #   任务名称
+  shape_meta: #   任务的shape_meta信息，与上面保持一致
+    action:
+      shape:
+      - 2
+    obs:
+      agent_pos:
+        shape:
+        - 2
+        type: low_dim
+      image:
+        shape:
+        - 3
+        - 96
+        - 96
+        type: rgb
+task_name: pusht_image  #   任务名称
+ #  训练参数
+training:
+  checkpoint_every: 50  #   每隔50个step保存一次模型
+  debug: false  #   是否使用debug模式
+  device: cuda:0  #   训练device
+  gradient_accumulate_every: 1  #   梯度累积步数，这里是 1 表示不进行梯度累积(两个AI给出的答案不一样，一个累积一个不累计，存疑)
+  lr_scheduler: cosine  #   学习率调度器，这里使用余弦调度器
+  lr_warmup_steps: 500  #   学习率热身的步数
+  max_train_steps: null #   最大训练步数，这里设置为null表示不限制
+  max_val_steps: null #   最大验证步数，这里设置为null表示不限制
+  num_epochs: 3050  #   训练轮数
+  resume: true  #   是否从上次保存的checkpoint继续训练
+  rollout_every: 50 #   训练过程中每隔多少步进行验证
+  sample_every: 5 #   训练过程中每隔多少步进行采样
+  seed: 42  #   随机种子
+  tqdm_interval_sec: 1.0  #   tqdm进度条更新间隔时间
+  use_ema: true #   是否使用ema
+  val_every: 1  #   验证间隔，这里设置为1表示每个epoch都进行验证
+val_dataloader:
+  batch_size: 64  #   验证集的batch size
+  num_workers: 8  #   验证集的数据加载器工作线程数
+  persistent_workers: false #   是否保持工作线程的持久性，设置为 false 表示不保持
+  pin_memory: true  #   是否将数据页锁定在内存中，以加快数据传输速度，设置为 true 表示锁定
+  shuffle: false  #   是否在验证集的数据加载器中打乱数据，设置为 false 表示不打乱
