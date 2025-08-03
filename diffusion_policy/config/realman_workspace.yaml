@@ -74,15 +74,17 @@ ema:
   max_value: 0.9999
 
 dataloader:
-  batch_size: 64
+  batch_size: 32
   num_workers: 8
+  # num_workers: 1
   shuffle: True
   pin_memory: True
   persistent_workers: True
 
 val_dataloader:
-  batch_size: 64
+  batch_size: 32
   num_workers: 8
+  # nuim_workers: 1
   shuffle: False
   pin_memory: True
   persistent_workers: True
@@ -95,7 +97,7 @@ optimizer:
   weight_decay: 1.0e-6
 
 training:
-  device: "cuda:0"
+  device: "cuda:1"
   seed: 42
   debug: False
   resume: True

@@ -2,6 +2,8 @@
 Usage:
 Training:
 python train.py --config-name=train_diffusion_lowdim_workspace
+nohup python train.py --config-name=realman_workspace > realman_output.log 2>&1&
+ps aux | grep "python train.py --config-name=realman_workspace" | grep -v grep
 """
 
 # import os

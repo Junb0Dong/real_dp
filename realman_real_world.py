@@ -1,7 +1,7 @@
 """
 scp /path/to/local/file username@server_ip:/path/to/remote/directory
 Usage:
-(robodiff)$ python demo_real_robot.py -o <demo_save_dir> --robot_ip <ip_of_ur5>
+(robodiff)$ python realman_real_world.py -o <demo_save_dir> --robot_ip <ip_of_ur5> --vp_ip <ip_of_visionpro>
 
 Robot movement:
 Move your SpaceMouse to move the robot EEF (locked in xy plane).

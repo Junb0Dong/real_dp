@@ -26,7 +26,7 @@ shape_meta: &shape_meta
       shape: [7]
       type: low_dim
   action: 
-    shape: [7]
+    shape: [8]
 
 env_runner:
   _target_: diffusion_policy.env_runner.realman_runner.RealmanRunner
@@ -46,7 +46,7 @@ env_runner:
 
 dataset:
   _target_: diffusion_policy.dataset.realman_pick_test_dataset.RealmanPickTestDataset
-  zarr_path: data/pick_place_0801.zarr
+  zarr_path: data/gripper_pick_place_0801_convert.zarr
   horizon: ${horizon}
   pad_before: ${eval:'${n_obs_steps}-1'}
   pad_after: ${eval:'${n_action_steps}-1'}
