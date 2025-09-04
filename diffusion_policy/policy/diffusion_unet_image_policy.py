@@ -39,7 +39,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         obs_feature_dim = obs_encoder.output_shape()[0]
 
         # create diffusion model
-        input_dim = action_dim + obs_feature_dim
+        input_dim = action_dim + obs_feature_dim    # 拼接action和observation(image+low dim)特征
         global_cond_dim = None
         if obs_as_global_cond:
             input_dim = action_dim
@@ -80,6 +80,8 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         self.num_inference_steps = num_inference_steps
     
     # ========= inference  ============
+    # TODO: 看完代码产生了两个问题：1.trajectory表示了什么；2.conditiona_data和condition_mask是什么
+    # 回答问题：trajectory是预测模型的输出相当于action，conditioin_data表示的是初始化的数据，condition_mask表示哪些位置需要进行Inference，那些地方是已知的，不需要模型来推理（比如past action）。（我自己猜的，八九不离十）
     def conditional_sample(self, 
             condition_data, condition_mask,
             local_cond=None, global_cond=None,
@@ -168,7 +170,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
             cond_mask,
             local_cond=local_cond,
             global_cond=global_cond,
-            **self.kwargs)
+            **self.kwargs)  # 在其中执行了模型预测噪声和step的过程，返回的值应该就是action
         
         # unnormalize prediction
         naction_pred = nsample[...,:Da]
@@ -193,7 +195,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         # normalize input
         assert 'valid_mask' not in batch
         nobs = self.normalizer.normalize(batch['obs'])
-        nactions = self.normalizer['action'].normalize(batch['action'])
+        nactions = self.normalizer['action'].normalize(batch['action']) # 对于action用同一个normalize方法
         batch_size = nactions.shape[0]
         horizon = nactions.shape[1]
 
@@ -222,7 +224,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         condition_mask = self.mask_generator(trajectory.shape)
 
         # Sample noise that we'll add to the images
-        noise = torch.randn(trajectory.shape, device=trajectory.device)
+        noise = torch.randn(trajectory.shape, device=trajectory.device) # 生成和action一样维度的noise
         bsz = trajectory.shape[0]
         # Sample a random timestep for each image
         timesteps = torch.randint(
