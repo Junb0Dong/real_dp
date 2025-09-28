@@ -101,6 +101,7 @@ class DiffusionUnetImagePolicy(BaseImagePolicy):
         # set step values
         scheduler.set_timesteps(self.num_inference_steps)
 
+        # t步去噪
         for t in scheduler.timesteps:
             # 1. apply conditioning
             trajectory[condition_mask] = condition_data[condition_mask]
